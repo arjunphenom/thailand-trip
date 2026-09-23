@@ -1,0 +1,227 @@
+{
+  "travellers": [
+    { "name": "ACHU (Admin)", "colour": "#38675B" },
+    { "name": "AJ", "colour": "#A65B47" },
+    { "name": "DRUNK", "colour": "#64779D" },
+    { "name": "DK", "colour": "#92713B" },
+    { "name": "AMROWW", "colour": "#886A86" },
+    { "name": "small_dude", "colour": "#4D8087" }
+  ],
+  "itinerary_days": [
+    {
+      "day_date": "2026-10-31",
+      "city": "Phuket",
+      "hotel": "Memory Boutique, Patong",
+      "title": "Phuket arrival",
+      "notes": "Depart Bengaluru 10:35am, land Phuket 3:50pm. Check in, then Old Phuket Town for an evening walk, food and cafes.",
+      "watch_out": "Don't add a major excursion after a travel day."
+    },
+    {
+      "day_date": "2026-11-01",
+      "city": "Phuket",
+      "hotel": "Memory Boutique, Patong",
+      "title": "Phi Phi Islands + Maya Bay",
+      "notes": "Full-day boat excursion. Snorkelling and swimming if sea conditions allow. Back to Phuket for a relaxed dinner.",
+      "watch_out": "Don't stack anything after the boat returns. Everyone will be wrecked and sunburnt."
+    },
+    {
+      "day_date": "2026-11-02",
+      "city": "Phuket \u2192 ?",
+      "hotel": "NOT BOOKED",
+      "title": "Phuket activities, then travel",
+      "notes": "Morning and afternoon for Mario Kart and the shooting activity. Keep a buffer for packing and checkout. Fly out in the evening.",
+      "watch_out": "This night has no hotel booked. It's the biggest open question in the whole plan.",
+      "conflict_note": "No hotel booked for tonight, and it's also a checkout and activity day. Resolve the accommodation before booking activities."
+    },
+    {
+      "day_date": "2026-11-03",
+      "city": "Pattaya",
+      "hotel": "Arawana",
+      "title": "Transfer to Pattaya",
+      "notes": "Arrive, transfer to Pattaya, check in, rest, lunch. Walking Street in the evening if the whole group is comfortable with it.",
+      "watch_out": "This is a transition and recovery day. Don't overload it."
+    },
+    {
+      "day_date": "2026-11-04",
+      "city": "Pattaya",
+      "hotel": "Arawana",
+      "title": "Sanctuary of Truth",
+      "notes": "Morning at the Sanctuary of Truth. Afternoon for massage, pool and relaxation. Optional viewpoint or cafe if anyone still has energy.",
+      "watch_out": "Keep the evening deliberately empty."
+    },
+    {
+      "day_date": "2026-11-05",
+      "city": "Pattaya",
+      "hotel": "Arawana",
+      "title": "Coral Island (Koh Larn)",
+      "notes": "Full or half day on Koh Larn. Beach and water activities. Relaxed final Pattaya evening.",
+      "watch_out": "Entirely weather and sea-condition dependent. Have a plan B."
+    },
+    {
+      "day_date": "2026-11-06",
+      "city": "Bangkok",
+      "hotel": "Marigold Sukhumvit",
+      "title": "Transfer to Bangkok, Wat Arun at sunset",
+      "notes": "Leave Pattaya after breakfast, roughly 2 hours. Check in and rest. Wat Arun around sunset, dinner after.",
+      "watch_out": "Arrive at Wat Arun by Chao Phraya river boat rather than by road. Much better approach, and sunset not midday."
+    },
+    {
+      "day_date": "2026-11-07",
+      "city": "Bangkok",
+      "hotel": "Marigold Sukhumvit",
+      "title": "Wat Sam Phran + Chinatown \u2014 the heaviest day",
+      "notes": "Wat Sam Phran (the Dragon Temple) in the morning. It's in Nakhon Pathom, outside central Bangkok, roughly 1.5 hours each way. Saturday hours are 6am to 6pm; weekdays are 9am to 5pm. Confirm close to the date because local hours change. Evening in Chinatown / Yaowarat for food.",
+      "watch_out": "This day is overloaded. It's also Rajadamnern's flagship fight night. Pick two of the three \u2014 temple, Chinatown, Muay Thai \u2014 don't attempt all three. If the group is flagging, drop the temple rather than sacrificing Bangkok downtime for one photo.",
+      "conflict_note": "Three competing plans on one day \u2014 Wat Sam Phran (3 hours of travel), Chinatown, and the Rajadamnern fight night. Pick two."
+    },
+    {
+      "day_date": "2026-11-08",
+      "city": "Bangkok \u2192 home",
+      "hotel": "Checkout day",
+      "title": "Shopping, then 9:50pm flight home",
+      "notes": "Morning and early afternoon for shopping. Leave for Suvarnabhumi around 6:00\u20136:30pm. Flight departs 9:50pm, lands Bengaluru 12:00am.",
+      "watch_out": "Siam Premium Outlets is near Suvarnabhumi, so shop there and go straight to the airport. A central Bangkok mall is NOT an outlet, and going there means crossing the city twice on a flight day. It's a Sunday, so Chatuchak is also open \u2014 9 to 10am before the heat.",
+      "conflict_note": "Flight day. Shopping plus a 6:30pm airport departure is tight. Outlet near the airport only."
+    }
+  ],
+  "tasks": [
+    {
+      "title": "Night of Mon 2 Nov has no hotel booked",
+      "category": "urgent",
+      "trip_day": "2026-11-02",
+      "detail": "Our three bookings cover Phuket 31 Oct to 2 Nov, Arawana Pattaya 3 to 6 Nov, and Marigold Sukhumvit 6 to 8 Nov. The itinerary left \"optional overnight travel to Bangkok\" undecided, so the night of Mon 2 Nov falls straight into the gap. Three options: (a) evening flight Phuket to Bangkok plus one night in a Bangkok hotel, which is cleanest; (b) an extra night in Phuket and fly out the morning of 3 Nov; (c) the overnight bus, 12 to 14 hours, not recommended for six people. Pick one this week \u2014 everything else on 2 and 3 Nov depends on it."
+    },
+    {
+      "title": "Phuket \u2192 Bangkok flight, 2 Nov, 6 seats",
+      "category": "urgent",
+      "trip_day": "2026-11-02",
+      "detail": "Thai AirAsia, Thai Lion, Nok Air and Thai Vietjet all fly this route. It's only 1h25 to 1h40 in the air versus 12 to 14 hours by bus. Check this first: also price Phuket to U-Tapao, which is Pattaya's own airport. If a flight works we skip Bangkok entirely on 2 and 3 Nov and save half a day plus the extra hotel night."
+    },
+    {
+      "title": "Confirm Marigold checkout date",
+      "category": "urgent",
+      "trip_day": "2026-11-08",
+      "detail": "The flight out is 9:50pm on Sunday 8 Nov. Did we book two nights (6th and 7th) or three (6th, 7th and 8th)? If only two, we need late checkout or luggage storage arranged for the 8th \u2014 otherwise six people are dragging shopping bags around Bangkok all afternoon."
+    },
+    {
+      "title": "Phi Phi + Maya Bay boat",
+      "category": "booking",
+      "trip_day": "2026-11-01",
+      "est_cost_thb": 18000,
+      "detail": "For six people, get a quote for a private speedboat against a small-group tour. Private often lands close on a per-head basis and we control the timing and beat the crowds. Maya Bay is open in November \u2014 the annual closure only runs 1 August to 30 September. Confirm whether the national park entry fee is included in the quote or charged separately on the day."
+    },
+    {
+      "title": "Mario Kart + shooting range, Phuket",
+      "category": "booking",
+      "trip_day": "2026-11-02",
+      "est_cost_thb": 9000,
+      "detail": "Confirm both venues can take a group of six and pre-book the time slots. Leave a buffer, because this is also a checkout and packing day."
+    },
+    {
+      "title": "Van: airport \u2192 Pattaya",
+      "category": "booking",
+      "trip_day": "2026-11-03",
+      "est_cost_thb": 2500,
+      "detail": "Six people plus luggage needs a proper van, not two taxis. Pre-book it. Negotiating with drivers at arrivals with six people and a luggage pile never goes well."
+    },
+    {
+      "title": "Sanctuary of Truth tickets",
+      "category": "booking",
+      "trip_day": "2026-11-04",
+      "est_cost_thb": 3600,
+      "detail": "Online tickets are cheaper than buying at the gate. It's an active wood-carving restoration site, so confirm no work is blocking access on the day we're going."
+    },
+    {
+      "title": "Koh Larn / Coral Island boat",
+      "category": "booking",
+      "trip_day": "2026-11-05",
+      "est_cost_thb": 6000,
+      "detail": "Speedboat plus beach transfer. Keep it cancellable \u2014 sea conditions decide this one. Don't stack anything after the boat gets back."
+    },
+    {
+      "title": "Van: Pattaya \u2192 Bangkok",
+      "category": "booking",
+      "trip_day": "2026-11-06",
+      "est_cost_thb": 2800,
+      "detail": "Leave after a late breakfast, roughly 2 hours on the road. Getting in by early afternoon leaves time to rest before Wat Arun at sunset."
+    },
+    {
+      "title": "Van: hotel \u2192 Suvarnabhumi",
+      "category": "booking",
+      "trip_day": "2026-11-08",
+      "est_cost_thb": 1200,
+      "detail": "Leave between 6:00 and 6:30pm for the 9:50pm flight. Book for six people plus shopping bags \u2014 we'll have considerably more luggage going home than we came with."
+    },
+    {
+      "title": "Muay Thai at Rajadamnern Stadium",
+      "category": "optional",
+      "trip_day": "2026-11-07",
+      "est_cost_thb": 10800,
+      "detail": "Saturday 7 Nov is the Rajadamnern World Series flagship card, the best night of the week. Book direct at rajadamnern.com \u2014 their official ticketing partner is Ticketmelon. Never buy from touts at the entrance, who quote inflated prices for bad seats. On seats: Club Class at 1,800 baht is the value pick with clear sightlines. Ringside at 2,500 baht is genuinely better if we're only doing this once. Skip third class at 1,000 baht \u2014 you're behind wire mesh with the gambling crowd and will barely see the fights. The stadium is in the old city near Khao San, not on the BTS, so budget 25 to 40 minutes by Grab from Sukhumvit. Conflict: 7 Nov already has Wat Sam Phran and Chinatown."
+    },
+    {
+      "title": "Chatuchak Weekend Market",
+      "category": "optional",
+      "trip_day": "2026-11-08",
+      "detail": "15,000 stalls, and it runs Saturday and Sunday only \u2014 8 Nov is a Sunday, so it fits. Go between 9 and 10am before the heat turns it miserable. Best place in the city for souvenirs, handicrafts and homeware."
+    },
+    {
+      "title": "Platinum Fashion Mall, Pratunam",
+      "category": "optional",
+      "detail": "The genuinely cheap shopping option, as opposed to the outlets. Over 1,300 wholesale shops across six floors, open to anyone with no membership needed. Rates drop to wholesale once you buy three or more of the same item, so pool purchases across the group. Two practical notes: most shops have no trial rooms, so bring a measuring tape and know your sizes; and go on a weekday morning before noon or it's a crush. Ten minutes on foot from either Ratchathewi or Chidlom BTS."
+    },
+    {
+      "title": "Siam Premium Outlets vs Central Village",
+      "category": "optional",
+      "detail": "Siam Premium Outlets is the better of the two \u2014 it has both Nike and Adidas where Central Village only has Adidas, plus a stronger overall brand mix and far better food. Both sit near Suvarnabhumi, so the smart play is hitting one on the way to the airport rather than burning a half day from the city. There's a shuttle from Siam Paragon at 150 baht each way. Set expectations: Thai outlet discounts are often modest, sometimes as low as 10%, and on sports brands you may find prices no better than a sale at home. Go for the hunt, not guaranteed savings."
+    },
+    {
+      "title": "TDAC \u2014 Thailand Digital Arrival Card",
+      "category": "admin",
+      "is_everyone": true,
+      "due_date": "2026-10-28",
+      "detail": "Free, and legally required for every traveller entering Thailand including visa-free arrivals. Submit within 72 hours before landing on 31 Oct, via the official government portal only \u2014 lookalike sites charge fake fees. Airlines are required to check this at check-in, so no TDAC means denied boarding. This is the single most-forgotten item on any Thailand trip. Everyone post a screenshot in the group when yours is done."
+    },
+    {
+      "title": "Passport valid 6+ months",
+      "category": "admin",
+      "is_everyone": true,
+      "detail": "Indian passports get visa-free entry to Thailand, so there's no visa application to make. But check every passport has at least six months of validity beyond 8 November 2026, and a couple of blank pages."
+    },
+    {
+      "title": "Travel insurance",
+      "category": "admin",
+      "is_everyone": true,
+      "est_cost_thb": 6000,
+      "detail": "Two boat days and a shooting range on this itinerary \u2014 worth having. Check whether a single group policy is cheaper than six individual ones."
+    },
+    {
+      "title": "Print return ticket + all 3 hotel confirmations",
+      "category": "admin",
+      "is_everyone": true,
+      "detail": "Thai immigration occasionally asks arriving tourists for proof of onward travel and accommodation. A printout each avoids a bad twenty minutes at the counter."
+    },
+    {
+      "title": "Forex \u2014 THB cash + low-markup card",
+      "category": "admin",
+      "detail": "Airport exchange rates are the worst available anywhere. Carry some baht from India, then top up at SuperRich or Vasu in Bangkok for the best rates in the city. Bring a card with low forex markup as backup."
+    },
+    {
+      "title": "eSIM or local SIM",
+      "category": "admin",
+      "is_everyone": true,
+      "detail": "AIS and TrueMove counters are in Phuket arrivals, or buy an eSIM before flying so you land already connected. At least three of the six should have working data at any time."
+    },
+    {
+      "title": "Install Grab + download offline maps",
+      "category": "admin",
+      "is_everyone": true,
+      "detail": "Grab is the taxi app across Thailand \u2014 metered, no haggling, no language problem. Download offline Google Maps for Phuket, Pattaya and Bangkok before we fly."
+    },
+    {
+      "title": "Shared folder: passport scans + all bookings",
+      "category": "admin",
+      "detail": "One cloud folder everyone can reach, holding passport scans, flight PNRs, hotel confirmations and tour vouchers. Saves the trip if a phone dies or a bag walks off. Keep this in a PRIVATE folder, not in this app."
+    }
+  ]
+}

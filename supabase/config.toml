@@ -1,0 +1,5 @@
+project_id = "thailand-nov-2026"
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
