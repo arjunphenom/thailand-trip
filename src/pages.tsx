@@ -6,7 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { toast } from 'sonner'
-import { CATEGORIES, CATEGORY_LABELS, DEFAULT_BUDGET_THB, EXPENSE_CATEGORIES, EXPENSE_LABELS, countdown, costs, daysBetween, filterTasks, formatDate, groupSpend, money, progress, relativeTime, spendByCategory, sumExpenses, taskStatus, travellerExpenses } from './lib/trip.ts'
+import { CATEGORIES, CATEGORY_LABELS, DEFAULT_BUDGET_THB, EXPENSE_CATEGORIES, EXPENSE_LABELS, countdown, costs, daysBetween, filterTasks, formatDate, groupSpend, money, progress, relativeTime, settlements, splitBalances, spendByCategory, sumExpenses, taskStatus, travellerExpenses } from './lib/trip.ts'
 import type { ExpenseCategory, Filter, ItineraryDay } from './lib/types.ts'
 import { useInrRate } from './lib/rate.ts'
 import { useTrip } from './lib/use-trip.tsx'
@@ -163,6 +163,9 @@ export function MoneyPage() {
   const [confirmClear, setConfirmClear] = useState(false)
   const [convFrom, setConvFrom] = useState<'thb' | 'inr'>('thb')
   const [convAmount, setConvAmount] = useState('')
+  const [amountValue, setAmountValue] = useState('')
+  const [splitOn, setSplitOn] = useState(false)
+  const [splitWith, setSplitWith] = useState<string[]>([])
   const formRef = useRef<HTMLFormElement>(null)
 
   const mine = travellerExpenses(data, me?.id ?? null)
@@ -179,20 +182,26 @@ export function MoneyPage() {
   const maxCategory = Math.max(1, ...breakdown.map((row) => row.total))
   const planning = costs(data)
   const todayField = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
+  const splitShare = splitOn && splitWith.length >= 2 ? (Number(amountValue) || 0) / splitWith.length : 0
+  const hasShared = data.expenses.some((expense) => expense.split_with && expense.split_with.length > 0)
+  const settleBalances = splitBalances(data).filter((entry) => Math.abs(entry.net) >= 1)
+  const settleList = settlements(data)
 
   const addExpense = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!me) return
-    const fields = new FormData(event.currentTarget)
-    const amount = Number(fields.get('amount'))
+    const amount = Number(amountValue)
     if (!Number.isFinite(amount) || amount <= 0) { toast.error('Enter an amount greater than zero.'); return }
+    const fields = new FormData(event.currentTarget)
     const note = String(fields.get('note') ?? '').trim()
     const when = String(fields.get('spent_at') ?? '')
+    const split = splitOn && splitWith.length >= 2 ? splitWith : null
     const ok = await save(() => store.addExpense({
       traveller_id: me.id, amount_thb: Math.round(amount * 100) / 100, category,
-      note: note || null, spent_at: when ? new Date(`${when}T12:00:00`).toISOString() : new Date().toISOString(),
-    }), 'Added to your spending.')
-    if (ok) { formRef.current?.reset(); setCategory('food') }
+      note: note || null, split_with: split,
+      spent_at: when ? new Date(`${when}T12:00:00`).toISOString() : new Date().toISOString(),
+    }), split ? 'Added and split with the group.' : 'Added to your spending.')
+    if (ok) { formRef.current?.reset(); setAmountValue(''); setCategory('food'); setSplitOn(false); setSplitWith([]) }
   }
 
   const saveBudget = async (event: FormEvent<HTMLFormElement>) => {
@@ -241,12 +250,17 @@ export function MoneyPage() {
     <section className="spend-entry" aria-label="Add an expense">
       <div className="spend-entry-head"><Plus size={16} /><h3>Add spend</h3><span>฿ THB</span></div>
       <form ref={formRef} className="spend-form" onSubmit={addExpense}>
-        <div className="amount-field"><span>฿</span><input name="amount" type="number" inputMode="decimal" min={0} step="1" placeholder="0" aria-label="Amount in baht" required /></div>
+        <div className="amount-field"><span>฿</span><input name="amount" type="number" inputMode="decimal" min={0} step="1" placeholder="0" aria-label="Amount in baht" value={amountValue} onChange={(event) => setAmountValue(event.target.value)} required /></div>
         <div className="category-picker" role="group" aria-label="Category">{EXPENSE_CATEGORIES.map((item) => { const Icon = EXPENSE_ICONS[item]; return <button type="button" key={item} className={`cat-chip ${category === item ? 'selected' : ''}`} aria-pressed={category === item} onClick={() => setCategory(item)}><Icon size={16} />{EXPENSE_LABELS[item]}</button> })}</div>
         <div className="spend-form-row">
           <input name="note" maxLength={200} placeholder="Where / what for" aria-label="Where you spent" />
           <input name="spent_at" type="date" aria-label="Date" defaultValue={todayField} />
         </div>
+        <div className="split-bar">
+          <button type="button" className={`split-switch ${splitOn ? 'on' : ''}`} aria-pressed={splitOn} onClick={() => setSplitOn((on) => { const next = !on; if (next && splitWith.length === 0) setSplitWith(data.travellers.map((traveller) => traveller.id)); return next })}><Users size={15} />Split this</button>
+          {splitOn && splitWith.length >= 2 && <span className="split-hint">{money(splitShare)} each · {splitWith.length}</span>}
+        </div>
+        {splitOn && <div className="split-picker" role="group" aria-label="Split with">{data.travellers.map((traveller) => <button type="button" key={traveller.id} className={`split-chip ${splitWith.includes(traveller.id) ? 'selected' : ''}`} aria-pressed={splitWith.includes(traveller.id)} onClick={() => setSplitWith((current) => current.includes(traveller.id) ? current.filter((id) => id !== traveller.id) : [...current, traveller.id])}><Avatar traveller={traveller} small />{traveller.name.replace(/\s*\(Admin\)$/i, '')}</button>)}</div>}
         <button className="button button-primary full-width" type="submit" disabled={preview || !me}><Plus size={17} />Add spend</button>
       </form>
       {preview && <p className="preview-form-note">Read-only preview. Connect Supabase to track spending.</p>}
@@ -279,6 +293,20 @@ export function MoneyPage() {
         <div className="group-main"><div className="group-top"><span>{traveller.name.replace(/\s*\(Admin\)$/i, '')}</span><strong>{money(total)}</strong></div>
           <div className="group-bar"><span style={{ width: `${Math.round(total / maxGroup * 100)}%`, background: traveller.colour }} /></div></div>
       </div>)}</div> : <p className="empty-inline">No spending logged yet. Add your first entry above.</p>}
+    </section>
+
+    <section className="split-section" aria-label="Split and settle up">
+      <div className="cost-list-heading"><h3><ArrowRightLeft size={15} />Split &amp; settle up</h3></div>
+      {hasShared ? (settleBalances.length > 0 ? <>
+        <div className="balance-list">{settleBalances.map((entry) => <div className="balance-row" key={entry.traveller.id}>
+          <Avatar traveller={entry.traveller} small mine={entry.traveller.id === me?.id} />
+          <span className="balance-name">{entry.traveller.name.replace(/\s*\(Admin\)$/i, '')}</span>
+          <span className={`balance-amt ${entry.net > 0 ? 'pos' : 'neg'}`}>{entry.net > 0 ? `is owed ${money(entry.net)}` : `owes ${money(-entry.net)}`}</span>
+        </div>)}</div>
+        {settleList.length > 0 && <div className="settle-list"><span className="settle-head">Simplest way to settle</span>{settleList.map((transfer, index) => <div className="settle-row" key={index}>
+          <Avatar traveller={transfer.from} small /><span className="settle-text"><strong>{transfer.from.name.replace(/\s*\(Admin\)$/i, '')}</strong> pays <strong>{transfer.to.name.replace(/\s*\(Admin\)$/i, '')}</strong></span><span className="settle-amt">{money(transfer.amount)}</span>
+        </div>)}</div>}
+      </> : <p className="empty-inline">All shared costs are settled up.</p>) : <p className="empty-inline">No shared expenses yet. Tick &ldquo;Split this&rdquo; when adding a spend to split it with the group.</p>}
     </section>
 
     <details className="planning-budget"><summary><Wallet size={15} /><span>Planning estimates</span><span className="count-badge">{money(planning.estimated)}</span><ChevronDown size={16} /></summary>
@@ -443,6 +471,15 @@ export function MapPage() {
         </li>
       })}
     </ul>
+    <section className="emergency" aria-label="Emergency numbers in Thailand">
+      <div className="emergency-head"><TriangleAlert size={15} /><h3>Emergency in Thailand</h3></div>
+      <div className="emergency-grid">
+        <a href="tel:1155" className="emergency-item"><strong>1155</strong><span>Tourist Police</span></a>
+        <a href="tel:191" className="emergency-item"><strong>191</strong><span>Police</span></a>
+        <a href="tel:1669" className="emergency-item"><strong>1669</strong><span>Ambulance</span></a>
+        <a href="tel:199" className="emergency-item"><strong>199</strong><span>Fire</span></a>
+      </div>
+    </section>
     <p className="privacy-note">Your live location is shared with everyone who has this link while sharing is on. Turn it off anytime &mdash; no location history is kept.</p>
   </div>
 }

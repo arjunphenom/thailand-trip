@@ -71,6 +71,7 @@ export interface Expense {
   amount_thb: number
   category: ExpenseCategory
   note: string | null
+  split_with: string[] | null
   spent_at: string
   created_at: string
 }
@@ -104,4 +105,4 @@ export type NewTask = Pick<Task,
   'trip_day' | 'est_cost_thb' | 'is_everyone'
 >
 
-export type NewExpense = Pick<Expense, 'traveller_id' | 'amount_thb' | 'category' | 'note' | 'spent_at'>
+export type NewExpense = Pick<Expense, 'traveller_id' | 'amount_thb' | 'category' | 'note' | 'split_with' | 'spent_at'>

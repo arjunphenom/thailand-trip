@@ -155,6 +155,44 @@ export function spendRemaining(budget: number | null, spent: number): number | n
   return budget - spent
 }
 
+export interface SettleBalance { traveller: Traveller; net: number }
+export interface Settlement { from: Traveller; to: Traveller; amount: number }
+
+// Net per traveller across shared expenses: positive means they are owed money, negative means they owe.
+export function splitBalances(data: TripData): SettleBalance[] {
+  const net = new Map<string, number>(data.travellers.map((traveller) => [traveller.id, 0]))
+  for (const expense of data.expenses) {
+    const parts = expense.split_with?.filter((id) => net.has(id)) ?? []
+    if (parts.length === 0) continue
+    const amount = Number(expense.amount_thb)
+    const share = amount / parts.length
+    if (net.has(expense.traveller_id)) net.set(expense.traveller_id, (net.get(expense.traveller_id) ?? 0) + amount)
+    for (const id of parts) net.set(id, (net.get(id) ?? 0) - share)
+  }
+  return data.travellers.map((traveller) => ({ traveller, net: Math.round((net.get(traveller.id) ?? 0) * 100) / 100 }))
+}
+
+// Greedy minimal set of transfers that clears every balance.
+export function settlements(data: TripData): Settlement[] {
+  const byId = new Map(data.travellers.map((traveller) => [traveller.id, traveller]))
+  const owed = splitBalances(data).filter((entry) => entry.net > 0.5).map((entry) => ({ id: entry.traveller.id, amount: entry.net })).sort((first, second) => second.amount - first.amount)
+  const owes = splitBalances(data).filter((entry) => entry.net < -0.5).map((entry) => ({ id: entry.traveller.id, amount: -entry.net })).sort((first, second) => second.amount - first.amount)
+  const transfers: Settlement[] = []
+  let debtor = 0
+  let creditor = 0
+  while (debtor < owes.length && creditor < owed.length) {
+    const pay = Math.min(owes[debtor].amount, owed[creditor].amount)
+    const from = byId.get(owes[debtor].id)
+    const to = byId.get(owed[creditor].id)
+    if (from && to && pay > 0.5) transfers.push({ from, to, amount: Math.round(pay) })
+    owes[debtor].amount -= pay
+    owed[creditor].amount -= pay
+    if (owes[debtor].amount <= 0.5) debtor += 1
+    if (owed[creditor].amount <= 0.5) creditor += 1
+  }
+  return transfers
+}
+
 export function shareSummary(data: TripData, today = todayKey()): string {
   const { done, total } = progress(data)
   const lines = [`*${TRIP_TITLE}*`, '31 Oct - 8 Nov | Bengaluru > Phuket > Pattaya > Bangkok', countdown(today), `*${done}/${total} sorted*`, '']

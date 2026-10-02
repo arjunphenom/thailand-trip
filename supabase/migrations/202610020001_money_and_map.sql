@@ -16,6 +16,8 @@ create table if not exists public.expenses (
 
 create index if not exists expenses_traveller_idx on public.expenses(traveller_id, spent_at desc);
 
+alter table public.expenses add column if not exists split_with uuid[];
+
 create table if not exists public.locations (
   traveller_id uuid primary key references public.travellers(id) on delete cascade,
   lat double precision not null check (lat between -90 and 90),

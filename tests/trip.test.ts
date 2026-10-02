@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { costs, countdown, dueState, filterTasks, groupSpend, progress, safeBookingUrl, seedData, shareSummary, spendByCategory, spendRemaining, sumExpenses, taskStatus, todayKey, travellerExpenses } from '../src/lib/trip.ts'
+import { costs, countdown, dueState, filterTasks, groupSpend, progress, safeBookingUrl, seedData, settlements, shareSummary, spendByCategory, spendRemaining, splitBalances, sumExpenses, taskStatus, todayKey, travellerExpenses } from '../src/lib/trip.ts'
 
 describe('the complete trip seed', () => {
   it('keeps all six travellers, 22 tasks, nine days and three conflicts', () => {
@@ -126,5 +126,24 @@ describe('personal spend tracking', () => {
     expect(group[0].total).toBe(1000)
     expect(group.find((row) => row.traveller.id === me)?.total).toBe(1000)
     expect(travellerExpenses(data, null)).toEqual([])
+  })
+})
+
+describe('split and settle up', () => {
+  it('splits shared expenses equally and suggests minimal transfers', () => {
+    const data = seedData()
+    const [a, b, c] = data.travellers
+    data.expenses = [
+      { id: '1', traveller_id: a.id, amount_thb: 3000, category: 'food', note: null, split_with: [a.id, b.id, c.id], spent_at: '2026-11-01T10:00:00Z', created_at: '2026-11-01T10:00:00Z' },
+      { id: '2', traveller_id: b.id, amount_thb: 600, category: 'transport', note: null, split_with: null, spent_at: '2026-11-01T10:00:00Z', created_at: '2026-11-01T10:00:00Z' },
+    ]
+    const balances = splitBalances(data)
+    expect(balances.find((entry) => entry.traveller.id === a.id)?.net).toBe(2000)
+    expect(balances.find((entry) => entry.traveller.id === b.id)?.net).toBe(-1000)
+    expect(balances.find((entry) => entry.traveller.id === c.id)?.net).toBe(-1000)
+    const transfers = settlements(data)
+    expect(transfers).toHaveLength(2)
+    expect(transfers.every((transfer) => transfer.to.id === a.id)).toBe(true)
+    expect(transfers.reduce((sum, transfer) => sum + transfer.amount, 0)).toBe(2000)
   })
 })
