@@ -547,11 +547,13 @@ textarea { resize: vertical; line-height: 1.6; }
 .map-person-status.stale::before { background: #d0a63f; }
 
 .map-pin { background: transparent !important; border: 0 !important; }
-.map-pin-badge { position: relative; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: var(--pin); color: #fff; font-size: 12px; font-weight: 700; border: 2px solid #fff; box-shadow: 0 3px 9px #2b3a2e66; }
-.map-pin-badge::after { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #fff; }
-.map-pin-badge.me { box-shadow: 0 0 0 3px #ffffffcc, 0 0 0 5px var(--pin), 0 3px 9px #2b3a2e66; animation: pin-bounce 1.7s ease-in-out infinite; }
+.map-pin-badge { position: relative; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; background: var(--pin); color: #fff; font-size: 13px; font-weight: 700; border: 3px solid #fff; box-shadow: 0 4px 11px #2b3a2e66; }
+.map-pin-badge::after { content: ''; position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #fff; }
+.map-pin-badge.me::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; border: 2px solid var(--pin); animation: pin-pulse 1.8s ease-out infinite; }
+.map-pin-badge.me { box-shadow: 0 0 0 3px #ffffffcc, 0 0 0 5px var(--pin), 0 4px 11px #2b3a2e66; animation: pin-bounce 1.7s ease-in-out infinite; }
 .map-pin-badge.stale { filter: grayscale(0.55); opacity: .72; }
 @keyframes pin-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes pin-pulse { 0% { transform: scale(.75); opacity: .7; } 100% { transform: scale(1.6); opacity: 0; } }
 
 @media (max-width: 600px) {
   .spend-amount strong { font-size: 32px; }

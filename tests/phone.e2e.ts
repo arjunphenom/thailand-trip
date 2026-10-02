@@ -20,7 +20,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('dialog', { name: "Who's coming?" })).toBeVisible()
   await expect(page.locator('.identity-option')).toHaveCount(6)
   await expect(page.locator('.identity-photo')).toHaveJSProperty('naturalWidth', 1200)
-  await page.getByRole('button', { name: 'Admin', exact: true }).click()
+  await page.getByRole('button', { name: 'Arjun', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByText('Read-only preview', { exact: true })).toBeVisible()
 })

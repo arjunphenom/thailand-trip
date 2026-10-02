@@ -8,6 +8,7 @@ export default defineConfig({
   base,
   plugins: [react(), VitePWA({
     registerType: 'autoUpdate',
+    selfDestroying: true,
     includeAssets: ['thailand.webp', 'apple-touch-icon.png'],
     manifest: {
       id: base,

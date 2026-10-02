@@ -323,7 +323,7 @@ export function MapPage() {
       const stale = now - new Date(loc.updated_at).getTime() > STALE_MS
       const isMe = me?.id === traveller.id
       const icon = L.divIcon({
-        className: 'map-pin', iconSize: [40, 50], iconAnchor: [20, 48], tooltipAnchor: [0, -46],
+        className: 'map-pin', iconSize: [42, 54], iconAnchor: [21, 50], tooltipAnchor: [0, -50],
         html: `<span class="map-pin-badge ${stale ? 'stale' : ''} ${isMe ? 'me' : ''}" style="--pin:${traveller.colour}">${travellerInitials(traveller.name)}</span>`,
       })
       L.marker([loc.lat, loc.lng], { icon, title: traveller.name })
@@ -341,8 +341,11 @@ export function MapPage() {
   useEffect(() => {
     if (!sharing || !me || preview) return
     if (typeof navigator === 'undefined' || !navigator.geolocation) { setGeoError('This device has no location support.'); return }
+    if (typeof window !== 'undefined' && window.isSecureContext === false) { setGeoError('Location needs a secure (https) connection. Open the https link, not an IP address.'); return }
     let last = 0
-    const watch = navigator.geolocation.watchPosition((position) => {
+    let watch = 0
+    let triedLowAccuracy = false
+    const onPosition = (position: GeolocationPosition) => {
       setGeoError(null)
       const stamp = Date.now()
       if (stamp - last < 15_000) return
@@ -351,8 +354,21 @@ export function MapPage() {
         traveller_id: me.id, lat: position.coords.latitude, lng: position.coords.longitude,
         accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
       }).catch(() => {})
-    }, (error) => setGeoError(error.code === error.PERMISSION_DENIED ? 'Location permission denied. Allow it to share.' : 'Could not read your location.'),
-      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 })
+    }
+    const onError = (error: GeolocationPositionError) => {
+      if (!triedLowAccuracy && (error.code === error.POSITION_UNAVAILABLE || error.code === error.TIMEOUT)) {
+        triedLowAccuracy = true
+        navigator.geolocation.clearWatch(watch)
+        watch = navigator.geolocation.watchPosition(onPosition, onError, { enableHighAccuracy: false, maximumAge: 60_000, timeout: 30_000 })
+        return
+      }
+      setGeoError(
+        error.code === error.PERMISSION_DENIED ? 'Location permission denied. Allow location for this site in your browser, then tap share again.'
+        : error.code === error.POSITION_UNAVAILABLE ? 'Your location is unavailable. On a laptop, turn on Location Services in system settings, or try from your phone.'
+        : error.code === error.TIMEOUT ? 'Timed out finding your location. Try again in a moment or move to an open area.'
+        : 'Could not read your location.')
+    }
+    watch = navigator.geolocation.watchPosition(onPosition, onError, { enableHighAccuracy: true, maximumAge: 30_000, timeout: 27_000 })
     return () => navigator.geolocation.clearWatch(watch)
   }, [sharing, me, preview, store])
 
@@ -376,9 +392,15 @@ export function MapPage() {
     const map = mapRef.current
     if (!map) return
     if (myLoc) { map.setView([myLoc.lat, myLoc.lng], 16); return }
-    if (navigator.geolocation) navigator.geolocation.getCurrentPosition(
-      (position) => map.setView([position.coords.latitude, position.coords.longitude], 16),
-      () => toast.error('Could not find your location.'), { enableHighAccuracy: true, timeout: 15_000 })
+    if (!navigator.geolocation) { setGeoError('This device has no location support.'); return }
+    const locate = (highAccuracy: boolean) => navigator.geolocation.getCurrentPosition(
+      (position) => { setGeoError(null); map.setView([position.coords.latitude, position.coords.longitude], 16) },
+      (error) => {
+        if (highAccuracy && (error.code === error.POSITION_UNAVAILABLE || error.code === error.TIMEOUT)) { locate(false); return }
+        setGeoError(error.code === error.PERMISSION_DENIED ? 'Location permission denied. Allow location for this site.' : 'Could not find your location. Turn on Location Services or try from your phone.')
+      },
+      { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 15_000 : 30_000, maximumAge: 60_000 })
+    locate(true)
   }
 
   return <div className="page-body standalone-page map-page">
