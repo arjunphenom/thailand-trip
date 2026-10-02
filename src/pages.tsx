@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight, BedDouble, Bus, CalendarDays, Check, CheckCheck, ChevronDown, Coins, Crosshair, History, Hotel, ListTodo, LocateFixed, MapPin, MapPinned, PiggyBank, Plane, Plus, RadioTower, RefreshCw, ShoppingBag, Ticket, Trash2, TrendingUp, TriangleAlert, Users, Utensils, Wallet, WifiOff } from 'lucide-react'
+import { ArrowRight, ArrowRightLeft, ArrowUpRight, BedDouble, Bus, CalendarDays, Check, CheckCheck, ChevronDown, Coins, Crosshair, History, Hotel, ListTodo, LocateFixed, MapPin, MapPinned, PiggyBank, Plane, Plus, RadioTower, RefreshCw, ShoppingBag, Ticket, Trash2, TrendingUp, TriangleAlert, Users, Utensils, Wallet, WifiOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -161,6 +161,8 @@ export function MoneyPage() {
   const [category, setCategory] = useState<ExpenseCategory>('food')
   const [budgetOpen, setBudgetOpen] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [convFrom, setConvFrom] = useState<'thb' | 'inr'>('thb')
+  const [convAmount, setConvAmount] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
 
   const mine = travellerExpenses(data, me?.id ?? null)
@@ -223,6 +225,17 @@ export function MoneyPage() {
       {budgetOpen && <form className="budget-form" onSubmit={saveBudget}><label className="sr-only" htmlFor="budget-input">Budget in baht</label>
         <input id="budget-input" name="budget" type="number" inputMode="decimal" min={0} step="100" defaultValue={myBudget ?? DEFAULT_BUDGET_THB} placeholder="Budget in ฿" autoFocus />
         <button className="button button-primary" type="submit">Save</button></form>}
+    </section>
+
+    <section className="converter" aria-label="Convert baht and rupees">
+      <div className="converter-head"><ArrowRightLeft size={16} /><h3>Quick convert</h3><span>1 ฿ = {rate.toFixed(2)} ₹</span></div>
+      <div className="converter-row">
+        <label className="conv-field"><span>{convFrom === 'thb' ? '฿ Baht' : '₹ Rupees'}</span>
+          <input type="number" inputMode="decimal" min={0} value={convAmount} onChange={(event) => setConvAmount(event.target.value)} placeholder="0" aria-label={convFrom === 'thb' ? 'Amount in baht' : 'Amount in rupees'} /></label>
+        <button type="button" className="conv-swap" aria-label="Swap baht and rupees" onClick={() => setConvFrom((current) => current === 'thb' ? 'inr' : 'thb')}><ArrowRightLeft size={18} /></button>
+        <div className="conv-field conv-out"><span>{convFrom === 'thb' ? '₹ Rupees' : '฿ Baht'}</span>
+          <strong>{money((Number(convAmount) || 0) * (convFrom === 'thb' ? rate : 1 / rate), convFrom === 'thb' ? 'INR' : 'THB')}</strong></div>
+      </div>
     </section>
 
     <section className="spend-entry" aria-label="Add an expense">

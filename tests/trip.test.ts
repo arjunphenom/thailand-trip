@@ -6,7 +6,7 @@ describe('the complete trip seed', () => {
     const data = seedData()
     expect(data.travellers).toHaveLength(6)
     expect(data.travellers.map((traveller) => traveller.name)).toEqual([
-      'Arjun', 'AJ', 'DRUNK', 'DK', 'AMROWW', 'small_dude',
+      'achu', 'AJ', 'DRUNK', 'DK', 'AMROWW', 'small_dude',
     ])
     expect(data.travellers[5].id).toBe('00000000-0000-4000-8000-000000000006')
     expect(data.tasks).toHaveLength(22)
@@ -89,7 +89,7 @@ describe('trip dates, money and sharing', () => {
     data.tasks[1].status = 'done'
     const summary = shareSummary(data, '2026-09-23')
     expect(summary).toContain('*1/22 sorted*')
-    expect(summary).toContain(`${data.tasks[0].title} (Arjun)`)
+    expect(summary).toContain(`${data.tasks[0].title} (achu)`)
     expect(summary).toContain('(0/6 done)')
     expect(summary).toContain(`*DONE*\n- ${data.tasks[1].title}`)
   })

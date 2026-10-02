@@ -523,6 +523,19 @@ textarea { resize: vertical; line-height: 1.6; }
 .planning-budget[open] > summary > svg:last-child { transform: rotate(180deg); }
 .planning-budget .cost-list { padding-bottom: 12px; }
 
+.converter { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 22px; }
+.converter-head { display: flex; align-items: center; gap: 8px; margin-bottom: 13px; color: var(--green); }
+.converter-head h3 { font-size: 14px; font-weight: 600; color: var(--ink); margin-right: auto; }
+.converter-head > span { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.converter-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; }
+.conv-field { display: flex; flex-direction: column; gap: 6px; font-size: 10px; color: #7d8c70; min-width: 0; }
+.conv-field > span { text-transform: uppercase; letter-spacing: .03em; }
+.conv-field > input { font-size: 18px; font-weight: 600; color: var(--green); }
+.conv-out { text-align: right; }
+.conv-out > strong { display: block; min-height: 44px; line-height: 44px; font-size: 19px; font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.conv-swap { display: grid; place-items: center; width: 44px; height: 44px; align-self: end; margin-bottom: 2px; border-radius: 50%; background: #eef4e8; color: var(--green); border: 1px solid var(--line); }
+.conv-swap:hover { background: #e2ecdd; }
+
 .map-wrap { position: relative; margin-bottom: 8px; }
 .map-canvas { height: min(58vh, 540px); min-height: 320px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #dde6df; }
 .leaflet-container img { max-width: none; }
