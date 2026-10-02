@@ -6,8 +6,9 @@ import type { LucideIcon } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { toast } from 'sonner'
-import { CATEGORIES, CATEGORY_LABELS, EXPENSE_CATEGORIES, EXPENSE_LABELS, THB_TO_INR, countdown, costs, daysBetween, filterTasks, formatDate, groupSpend, money, progress, relativeTime, spendByCategory, spendRemaining, sumExpenses, taskStatus, travellerExpenses } from './lib/trip.ts'
+import { CATEGORIES, CATEGORY_LABELS, DEFAULT_BUDGET_THB, EXPENSE_CATEGORIES, EXPENSE_LABELS, countdown, costs, daysBetween, filterTasks, formatDate, groupSpend, money, progress, relativeTime, spendByCategory, sumExpenses, taskStatus, travellerExpenses } from './lib/trip.ts'
 import type { ExpenseCategory, Filter, ItineraryDay } from './lib/types.ts'
+import { useInrRate } from './lib/rate.ts'
 import { useTrip } from './lib/use-trip.tsx'
 import { AddTaskSheet, TaskCard, UnclaimedHint } from './components/TaskCard.tsx'
 import { Avatar, EmptyState, IconButton, Markdown, PhotoCredit } from './components/ui.tsx'
@@ -165,9 +166,11 @@ export function MoneyPage() {
   const mine = travellerExpenses(data, me?.id ?? null)
   const myTotal = sumExpenses(mine)
   const breakdown = spendByCategory(mine)
+  const { rate, live: liveRate, at: rateAt } = useInrRate()
   const myBudget = me?.budget_thb ?? null
-  const remaining = spendRemaining(myBudget, myTotal)
-  const budgetPct = myBudget ? Math.min(100, Math.round(myTotal / Number(myBudget) * 100)) : 0
+  const effectiveBudget = myBudget ?? DEFAULT_BUDGET_THB
+  const remaining = effectiveBudget - myTotal
+  const budgetPct = Math.min(100, Math.round(myTotal / effectiveBudget * 100))
   const group = groupSpend(data)
   const groupTotal = sumExpenses(data.expenses)
   const maxGroup = Math.max(1, ...group.map((row) => row.total))
@@ -211,14 +214,14 @@ export function MoneyPage() {
 
     <section className="spend-hero" aria-label="Your spending">
       <div className="spend-hero-top"><Avatar traveller={me} /><div><span className="spend-hero-name">{me ? me.name.replace(/\s*\(Admin\)$/i, '') : 'Pick your traveller'}</span><span className="spend-hero-label">Your total spend</span></div><Coins size={20} /></div>
-      <div className="spend-amount"><strong>{money(myTotal)}</strong><span>{money(myTotal * THB_TO_INR, 'INR')}</span></div>
-      {remaining !== null ? <div className="spend-budget">
+      <div className="spend-amount"><strong>{money(myTotal)}</strong><span>{money(myTotal * rate, 'INR')}</span></div>
+      <div className="spend-budget">
         <div className="spend-budget-bar"><span className={remaining < 0 ? 'over' : ''} style={{ width: `${budgetPct}%` }} /></div>
         <div className="spend-budget-line"><span>{remaining >= 0 ? 'Remaining' : 'Over budget'}</span><strong className={remaining < 0 ? 'over' : ''}>{money(Math.abs(remaining))}</strong></div>
-        <div className="spend-budget-foot"><span>Budget {money(Number(myBudget))}</span><button className="link-button" onClick={() => setBudgetOpen((open) => !open)} disabled={preview}><PiggyBank size={13} />Edit</button></div>
-      </div> : <button className="button button-secondary full-width budget-cta" onClick={() => setBudgetOpen((open) => !open)} disabled={preview || !me}><PiggyBank size={16} />Set a budget to see what's left</button>}
+        <div className="spend-budget-foot"><span>Budget {money(effectiveBudget)}{myBudget === null ? ' · default' : ''}</span><button className="link-button" onClick={() => setBudgetOpen((open) => !open)} disabled={preview}><PiggyBank size={13} />Edit</button></div>
+      </div>
       {budgetOpen && <form className="budget-form" onSubmit={saveBudget}><label className="sr-only" htmlFor="budget-input">Budget in baht</label>
-        <input id="budget-input" name="budget" type="number" inputMode="decimal" min={0} step="100" defaultValue={myBudget ?? ''} placeholder="Budget in ฿" autoFocus />
+        <input id="budget-input" name="budget" type="number" inputMode="decimal" min={0} step="100" defaultValue={myBudget ?? DEFAULT_BUDGET_THB} placeholder="Budget in ฿" autoFocus />
         <button className="button button-primary" type="submit">Save</button></form>}
     </section>
 
@@ -274,7 +277,7 @@ export function MoneyPage() {
         </Link>)}
       </div>}
     </details>
-    <p className="exchange-rate">1 THB &asymp; {THB_TO_INR} INR &middot; Planning rate, not a live quote.</p>
+    <p className="exchange-rate">1 THB &asymp; {rate.toFixed(2)} INR &middot; {liveRate ? 'Live rate' : 'Using planning rate'}{liveRate && rateAt ? ` · updated ${relativeTime(new Date(rateAt).toISOString())}` : ''}</p>
   </div>
 }
 
@@ -298,8 +301,8 @@ export function MapPage() {
   useEffect(() => {
     if (!container.current || mapRef.current) return
     const map = L.map(container.current, { zoomControl: true, attributionControl: false, worldCopyJump: true }).setView([13.2, 100.9], 6)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19,
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19,
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
@@ -388,7 +391,7 @@ export function MapPage() {
       </div>
       {located.length === 0 && <div className="map-hint"><RadioTower size={18} /><p>No one is sharing yet. Turn on your live location so the group can find you if you split up.</p></div>}
     </div>
-    <p className="map-credit">Map &copy; OpenStreetMap &middot; &copy; CARTO</p>
+    <p className="map-credit">Map &copy; OpenStreetMap contributors</p>
     <button className={`button full-width share-toggle ${sharing ? 'button-secondary' : 'button-primary'}`} onClick={() => void toggleShare()} disabled={preview || !me}>
       {sharing ? <><WifiOff size={17} />Stop sharing my location</> : <><LocateFixed size={17} />Share my live location</>}
     </button>

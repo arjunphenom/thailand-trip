@@ -7,7 +7,7 @@ const base = process.env.BASE_PATH || '/'
 export default defineConfig({
   base,
   plugins: [react(), VitePWA({
-    registerType: 'prompt',
+    registerType: 'autoUpdate',
     includeAssets: ['thailand.webp', 'apple-touch-icon.png'],
     manifest: {
       id: base,

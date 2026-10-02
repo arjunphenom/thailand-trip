@@ -5,6 +5,7 @@ export const TRIP_TITLE = 'Thailand Nov 2026'
 export const TRIP_START = '2026-10-31'
 export const TRIP_END = '2026-11-08'
 export const THB_TO_INR = 2.4
+export const DEFAULT_BUDGET_THB = 20000
 export const CATEGORIES: Category[] = ['urgent', 'booking', 'optional', 'admin']
 export const CATEGORY_LABELS: Record<Category, string> = {
   urgent: 'Urgent', booking: 'To book', optional: 'Optional', admin: 'Admin',
