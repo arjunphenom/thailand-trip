@@ -2,6 +2,7 @@ create table public.travellers (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(btrim(name)) between 1 and 60),
   colour text not null check (colour ~ '^#[0-9a-fA-F]{6}$'),
+  budget_thb numeric(12,2) check (budget_thb is null or budget_thb >= 0),
   created_at timestamptz not null default now()
 );
 

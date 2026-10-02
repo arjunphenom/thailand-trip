@@ -1,6 +1,6 @@
 {
   "travellers": [
-    { "name": "ACHU (Admin)", "colour": "#38675B" },
+    { "name": "Admin", "colour": "#38675B" },
     { "name": "AJ", "colour": "#A65B47" },
     { "name": "DRUNK", "colour": "#64779D" },
     { "name": "DK", "colour": "#92713B" },

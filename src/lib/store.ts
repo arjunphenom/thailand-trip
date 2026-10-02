@@ -1,6 +1,6 @@
 import { EMPTY_DATA, seedData } from './trip.ts'
-import type { Mutation, SocketState, TripBackend } from './backend.ts'
-import type { TripData } from './types.ts'
+import type { LivePosition, Mutation, SocketState, TripBackend } from './backend.ts'
+import type { NewExpense, TripData } from './types.ts'
 
 export type Connection = 'preview' | 'connecting' | 'connected' | 'reconnecting' | 'offline'
 export interface TripSnapshot {
@@ -162,4 +162,26 @@ export class TripStore {
 
   renameTraveller = (id: string, name: string) =>
     this.write('travellers', (backend) => backend.renameTraveller(id, name.trim()))
+
+  setBudget = (id: string, budget: number | null) =>
+    this.write('budget', (backend) => backend.setBudget(id, budget))
+
+  addExpense = (expense: NewExpense) =>
+    this.write('expense', (backend) => backend.addExpense(expense))
+
+  deleteExpense = (id: string) =>
+    this.write(`expense:${id}`, (backend) => backend.deleteExpense(id))
+
+  shareLocation = async (position: LivePosition) => {
+    if (!this.backend) throw new Error('This is a read-only preview. Connect Supabase to share your location.')
+    if (!this.online()) throw new Error("Location didn't update. Reconnect and try again.")
+    await this.backend.upsertLocation(position)
+    void this.refresh().catch(() => {})
+  }
+
+  stopLocation = async (id: string) => {
+    if (!this.backend) return
+    await this.backend.clearLocation(id).catch(() => {})
+    void this.refresh().catch(() => {})
+  }
 }

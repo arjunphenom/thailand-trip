@@ -1,12 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, Check, CheckCheck, ChevronDown, Copy, History, Hotel, ListTodo, MapPin, Plane, Plus, RefreshCw, Send, TriangleAlert, Users, Wallet } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, BedDouble, Bus, CalendarDays, Check, CheckCheck, ChevronDown, Coins, Crosshair, History, Hotel, ListTodo, LocateFixed, MapPin, MapPinned, PiggyBank, Plane, Plus, RadioTower, RefreshCw, ShoppingBag, Ticket, Trash2, TrendingUp, TriangleAlert, Users, Utensils, Wallet, WifiOff } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { toast } from 'sonner'
-import { CATEGORIES, CATEGORY_LABELS, THB_TO_INR, TRIP_TITLE, countdown, costs, daysBetween, filterTasks, formatDate, money, progress, relativeTime, shareSummary, taskStatus } from './lib/trip.ts'
-import type { Filter, ItineraryDay } from './lib/types.ts'
+import { CATEGORIES, CATEGORY_LABELS, EXPENSE_CATEGORIES, EXPENSE_LABELS, THB_TO_INR, countdown, costs, daysBetween, filterTasks, formatDate, groupSpend, money, progress, relativeTime, spendByCategory, spendRemaining, sumExpenses, taskStatus, travellerExpenses } from './lib/trip.ts'
+import type { ExpenseCategory, Filter, ItineraryDay } from './lib/types.ts'
 import { useTrip } from './lib/use-trip.tsx'
 import { AddTaskSheet, TaskCard, UnclaimedHint } from './components/TaskCard.tsx'
 import { Avatar, EmptyState, IconButton, Markdown, PhotoCredit } from './components/ui.tsx'
+
+const EXPENSE_ICONS: Record<ExpenseCategory, LucideIcon> = {
+  food: Utensils, transport: Bus, stay: BedDouble, shopping: ShoppingBag, activities: Ticket, misc: Coins,
+}
+
+function travellerInitials(name: string): string {
+  const clean = name.replace(/\s*\(Admin\)$/i, '').trim() || '?'
+  if (clean.startsWith('Traveller ')) return `T${clean.split(' ').at(-1)}`
+  return clean.length <= 2 ? clean.toUpperCase() : clean.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
+}
 
 function TripCover() {
   const { data } = useTrip()
@@ -141,55 +155,256 @@ export function ItineraryPage() {
 }
 
 export function MoneyPage() {
-  const { data } = useTrip()
-  const total = costs(data)
-  return <div className="page-body standalone-page"><div className="page-heading"><div><span className="eyebrow">THE GROUP BUDGET</span><h2>Money matters<span className="heading-dot">.</span></h2></div><span className="page-symbol"><Wallet size={24} /></span></div>
-    <section className="money-totals" aria-label="Group totals"><div><span className="stat-label">Total estimate</span><strong>{money(total.estimated)}</strong><span>{money(total.estimated * THB_TO_INR, 'INR')}</span></div>
-      <div><span className="stat-label">Actual recorded</span><strong>{money(total.actual)}</strong><span>{money(total.actual * THB_TO_INR, 'INR')}</span></div>
+  const { data, me, store, save, connection } = useTrip()
+  const preview = connection === 'preview'
+  const [category, setCategory] = useState<ExpenseCategory>('food')
+  const [budgetOpen, setBudgetOpen] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  const mine = travellerExpenses(data, me?.id ?? null)
+  const myTotal = sumExpenses(mine)
+  const breakdown = spendByCategory(mine)
+  const myBudget = me?.budget_thb ?? null
+  const remaining = spendRemaining(myBudget, myTotal)
+  const budgetPct = myBudget ? Math.min(100, Math.round(myTotal / Number(myBudget) * 100)) : 0
+  const group = groupSpend(data)
+  const groupTotal = sumExpenses(data.expenses)
+  const maxGroup = Math.max(1, ...group.map((row) => row.total))
+  const maxCategory = Math.max(1, ...breakdown.map((row) => row.total))
+  const planning = costs(data)
+  const todayField = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
+
+  const addExpense = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!me) return
+    const fields = new FormData(event.currentTarget)
+    const amount = Number(fields.get('amount'))
+    if (!Number.isFinite(amount) || amount <= 0) { toast.error('Enter an amount greater than zero.'); return }
+    const note = String(fields.get('note') ?? '').trim()
+    const when = String(fields.get('spent_at') ?? '')
+    const ok = await save(() => store.addExpense({
+      traveller_id: me.id, amount_thb: Math.round(amount * 100) / 100, category,
+      note: note || null, spent_at: when ? new Date(`${when}T12:00:00`).toISOString() : new Date().toISOString(),
+    }), 'Added to your spending.')
+    if (ok) { formRef.current?.reset(); setCategory('food') }
+  }
+
+  const saveBudget = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!me) return
+    const value = Number(new FormData(event.currentTarget).get('budget'))
+    const budget = Number.isFinite(value) && value > 0 ? Math.round(value * 100) / 100 : null
+    if (await save(() => store.setBudget(me.id, budget), budget ? 'Budget updated.' : 'Budget cleared.')) setBudgetOpen(false)
+  }
+
+  const clearMine = async () => {
+    if (!me) return
+    for (const expense of mine) await store.deleteExpense(expense.id).catch(() => {})
+    await store.refresh().catch(() => {})
+    setConfirmClear(false)
+    toast.success('Your spending was reset to zero.')
+  }
+
+  return <div className="page-body standalone-page">
+    <div className="page-heading"><div><span className="eyebrow">TRACK YOUR SPENDING</span><h2>Money<span className="heading-dot">.</span></h2></div><span className="page-symbol"><Wallet size={24} /></span></div>
+
+    <section className="spend-hero" aria-label="Your spending">
+      <div className="spend-hero-top"><Avatar traveller={me} /><div><span className="spend-hero-name">{me ? me.name.replace(/\s*\(Admin\)$/i, '') : 'Pick your traveller'}</span><span className="spend-hero-label">Your total spend</span></div><Coins size={20} /></div>
+      <div className="spend-amount"><strong>{money(myTotal)}</strong><span>{money(myTotal * THB_TO_INR, 'INR')}</span></div>
+      {remaining !== null ? <div className="spend-budget">
+        <div className="spend-budget-bar"><span className={remaining < 0 ? 'over' : ''} style={{ width: `${budgetPct}%` }} /></div>
+        <div className="spend-budget-line"><span>{remaining >= 0 ? 'Remaining' : 'Over budget'}</span><strong className={remaining < 0 ? 'over' : ''}>{money(Math.abs(remaining))}</strong></div>
+        <div className="spend-budget-foot"><span>Budget {money(Number(myBudget))}</span><button className="link-button" onClick={() => setBudgetOpen((open) => !open)} disabled={preview}><PiggyBank size={13} />Edit</button></div>
+      </div> : <button className="button button-secondary full-width budget-cta" onClick={() => setBudgetOpen((open) => !open)} disabled={preview || !me}><PiggyBank size={16} />Set a budget to see what's left</button>}
+      {budgetOpen && <form className="budget-form" onSubmit={saveBudget}><label className="sr-only" htmlFor="budget-input">Budget in baht</label>
+        <input id="budget-input" name="budget" type="number" inputMode="decimal" min={0} step="100" defaultValue={myBudget ?? ''} placeholder="Budget in ฿" autoFocus />
+        <button className="button button-primary" type="submit">Save</button></form>}
     </section>
-    <p className="cost-coverage">{total.recorded} of {total.tasks.length} actual costs recorded</p>
-    <section className="per-person" aria-label="Per person share"><div className="per-person-title"><Users size={20} /><div><h3>Per person</h3><p>Across {total.people} travellers</p></div></div>
-      <div><span>Estimated</span><strong>{money(total.perPerson)}</strong><small>{money(total.perPerson * THB_TO_INR, 'INR')}</small></div>
-      <div><span>Actual</span><strong>{money(total.actualPerPerson)}</strong><small>{money(total.actualPerPerson * THB_TO_INR, 'INR')}</small></div>
+
+    <section className="spend-entry" aria-label="Add an expense">
+      <div className="spend-entry-head"><Plus size={16} /><h3>Add spend</h3><span>฿ THB</span></div>
+      <form ref={formRef} className="spend-form" onSubmit={addExpense}>
+        <div className="amount-field"><span>฿</span><input name="amount" type="number" inputMode="decimal" min={0} step="1" placeholder="0" aria-label="Amount in baht" required /></div>
+        <div className="category-picker" role="group" aria-label="Category">{EXPENSE_CATEGORIES.map((item) => { const Icon = EXPENSE_ICONS[item]; return <button type="button" key={item} className={`cat-chip ${category === item ? 'selected' : ''}`} aria-pressed={category === item} onClick={() => setCategory(item)}><Icon size={16} />{EXPENSE_LABELS[item]}</button> })}</div>
+        <div className="spend-form-row">
+          <input name="note" maxLength={200} placeholder="Where / what for" aria-label="Where you spent" />
+          <input name="spent_at" type="date" aria-label="Date" defaultValue={todayField} />
+        </div>
+        <button className="button button-primary full-width" type="submit" disabled={preview || !me}><Plus size={17} />Add spend</button>
+      </form>
+      {preview && <p className="preview-form-note">Read-only preview. Connect Supabase to track spending.</p>}
     </section>
-    <div className="cost-list-heading"><h3>The breakdown</h3><span>THB</span></div>
-    {total.tasks.length ? <div className="cost-list"><div className="cost-column-head"><span>Booking / task</span><span>Estimate</span><span>Actual</span></div>
-      {total.tasks.map((task) => <Link to={`/?task=${task.id}`} className="cost-row" key={task.id}>
-        <span><span className={`cost-category-dot dot-${task.category}`} /><span>{task.title}<ArrowUpRight size={12} /></span></span>
-        <span>{task.est_cost_thb === null ? '\u2014' : money(Number(task.est_cost_thb))}</span><span className={task.actual_cost_thb === null ? 'cost-unset' : ''}>{task.actual_cost_thb === null ? '\u2014' : money(Number(task.actual_cost_thb))}</span>
-      </Link>)}
-    </div> : <EmptyState icon={Wallet} title="No costs recorded" detail="The group budget is still open."><Link className="button button-secondary" to="/">Back to the checklist<ArrowRight size={15} /></Link></EmptyState>}
+
+    {breakdown.length > 0 && <section className="spend-breakdown" aria-label="Where your money went">
+      <div className="cost-list-heading"><h3><TrendingUp size={15} />Where it went</h3><span>{mine.length} {mine.length === 1 ? 'entry' : 'entries'}</span></div>
+      <div className="breakdown-list">{breakdown.map((row) => { const Icon = EXPENSE_ICONS[row.category]; return <div className="breakdown-row" key={row.category}>
+        <span className={`cat-dot cat-${row.category}`}><Icon size={14} /></span>
+        <div className="breakdown-main"><div className="breakdown-top"><span>{EXPENSE_LABELS[row.category]}</span><strong>{money(row.total)}</strong></div>
+          <div className="breakdown-bar"><span className={`cat-${row.category}`} style={{ width: `${Math.round(row.total / maxCategory * 100)}%` }} /></div></div>
+      </div> })}</div>
+    </section>}
+
+    {mine.length > 0 && <section className="spend-log" aria-label="Your recent spending">
+      <div className="cost-list-heading"><h3>Recent</h3>{!confirmClear ? <button className="link-button danger" onClick={() => setConfirmClear(true)} disabled={preview}><Trash2 size={13} />Reset</button>
+        : <span className="clear-confirm">Reset all?<button className="link-button danger" onClick={() => void clearMine()}>Yes</button><button className="link-button" onClick={() => setConfirmClear(false)}>No</button></span>}</div>
+      <ul className="log-list">{mine.map((expense) => { const Icon = EXPENSE_ICONS[expense.category]; return <li className="log-row" key={expense.id}>
+        <span className={`cat-dot cat-${expense.category}`}><Icon size={14} /></span>
+        <div className="log-main"><span className="log-note">{expense.note || EXPENSE_LABELS[expense.category]}</span><span className="log-time">{EXPENSE_LABELS[expense.category]} · {relativeTime(expense.spent_at)}</span></div>
+        <span className="log-amount">{money(Number(expense.amount_thb))}</span>
+        <IconButton label="Delete entry" className="log-delete" disabled={preview} onClick={() => void save(() => store.deleteExpense(expense.id))}><Trash2 size={15} /></IconButton>
+      </li> })}</ul>
+    </section>}
+
+    <section className="group-spend" aria-label="Group spending">
+      <div className="cost-list-heading"><h3><Users size={15} />The group</h3><span>{money(groupTotal)}</span></div>
+      {groupTotal > 0 ? <div className="group-list">{group.map(({ traveller, total }) => <div className="group-row" key={traveller.id}>
+        <Avatar traveller={traveller} small mine={traveller.id === me?.id} />
+        <div className="group-main"><div className="group-top"><span>{traveller.name.replace(/\s*\(Admin\)$/i, '')}</span><strong>{money(total)}</strong></div>
+          <div className="group-bar"><span style={{ width: `${Math.round(total / maxGroup * 100)}%`, background: traveller.colour }} /></div></div>
+      </div>)}</div> : <p className="empty-inline">No spending logged yet. Add your first entry above.</p>}
+    </section>
+
+    <details className="planning-budget"><summary><Wallet size={15} /><span>Planning estimates</span><span className="count-badge">{money(planning.estimated)}</span><ChevronDown size={16} /></summary>
+      <p className="empty-inline">Pre-trip cost estimates on tasks. They stay as a reference, separate from what you actually spend.</p>
+      {planning.tasks.length > 0 && <div className="cost-list"><div className="cost-column-head"><span>Booking / task</span><span>Estimate</span><span>Actual</span></div>
+        {planning.tasks.map((task) => <Link to={`/?task=${task.id}`} className="cost-row" key={task.id}>
+          <span><span className={`cost-category-dot dot-${task.category}`} /><span>{task.title}<ArrowUpRight size={12} /></span></span>
+          <span>{task.est_cost_thb === null ? '\u2014' : money(Number(task.est_cost_thb))}</span><span className={task.actual_cost_thb === null ? 'cost-unset' : ''}>{task.actual_cost_thb === null ? '\u2014' : money(Number(task.actual_cost_thb))}</span>
+        </Link>)}
+      </div>}
+    </details>
     <p className="exchange-rate">1 THB &asymp; {THB_TO_INR} INR &middot; Planning rate, not a live quote.</p>
   </div>
 }
 
-export function SharePage() {
-  const { data, today } = useTrip()
-  const text = shareSummary(data, today)
-  const textArea = useRef<HTMLTextAreaElement>(null)
-  const [copied, setCopied] = useState(false)
-  const copy = async () => {
-    try {
-      if (!navigator.clipboard) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      toast.success('Copied for the group.')
-    } catch {
-      textArea.current?.focus()
-      textArea.current?.select()
-      toast('Clipboard unavailable. The message is selected for copying.')
+const SHARE_KEY = 'thailand26:share-location'
+const STALE_MS = 5 * 60 * 1000
+
+export function MapPage() {
+  const { data, me, store, connection } = useTrip()
+  const preview = connection === 'preview'
+  const container = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<L.Map | null>(null)
+  const layerRef = useRef<L.LayerGroup | null>(null)
+  const fitted = useRef(false)
+  const [sharing, setSharing] = useState(() => { try { return localStorage.getItem(SHARE_KEY) === 'on' } catch { return false } })
+  const [geoError, setGeoError] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+
+  const located = data.locations.filter((loc) => data.travellers.some((person) => person.id === loc.traveller_id))
+  const myLoc = located.find((loc) => loc.traveller_id === me?.id)
+
+  useEffect(() => {
+    if (!container.current || mapRef.current) return
+    const map = L.map(container.current, { zoomControl: true, attributionControl: false, worldCopyJump: true }).setView([13.2, 100.9], 6)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19,
+    }).addTo(map)
+    layerRef.current = L.layerGroup().addTo(map)
+    mapRef.current = map
+    const timer = setTimeout(() => map.invalidateSize(), 80)
+    return () => { clearTimeout(timer); map.remove(); mapRef.current = null; layerRef.current = null; fitted.current = false }
+  }, [])
+
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer) }, [])
+
+  useEffect(() => {
+    const map = mapRef.current, layer = layerRef.current
+    if (!map || !layer) return
+    layer.clearLayers()
+    const points: L.LatLngTuple[] = []
+    for (const loc of located) {
+      const traveller = data.travellers.find((person) => person.id === loc.traveller_id)
+      if (!traveller) continue
+      const stale = now - new Date(loc.updated_at).getTime() > STALE_MS
+      const isMe = me?.id === traveller.id
+      const icon = L.divIcon({
+        className: 'map-pin', iconSize: [40, 50], iconAnchor: [20, 48], tooltipAnchor: [0, -46],
+        html: `<span class="map-pin-badge ${stale ? 'stale' : ''} ${isMe ? 'me' : ''}" style="--pin:${traveller.colour}">${travellerInitials(traveller.name)}</span>`,
+      })
+      L.marker([loc.lat, loc.lng], { icon, title: traveller.name })
+        .bindTooltip(`${traveller.name.replace(/\s*\(Admin\)$/i, '')} \u00b7 ${relativeTime(loc.updated_at, new Date(now))}`, { direction: 'top' })
+        .addTo(layer)
+      points.push([loc.lat, loc.lng])
     }
+    if (points.length && !fitted.current) {
+      fitted.current = true
+      if (points.length === 1) map.setView(points[0], 15)
+      else map.fitBounds(L.latLngBounds(points).pad(0.3))
+    }
+  }, [located, data.travellers, me, now])
+
+  useEffect(() => {
+    if (!sharing || !me || preview) return
+    if (typeof navigator === 'undefined' || !navigator.geolocation) { setGeoError('This device has no location support.'); return }
+    let last = 0
+    const watch = navigator.geolocation.watchPosition((position) => {
+      setGeoError(null)
+      const stamp = Date.now()
+      if (stamp - last < 15_000) return
+      last = stamp
+      void store.shareLocation({
+        traveller_id: me.id, lat: position.coords.latitude, lng: position.coords.longitude,
+        accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+      }).catch(() => {})
+    }, (error) => setGeoError(error.code === error.PERMISSION_DENIED ? 'Location permission denied. Allow it to share.' : 'Could not read your location.'),
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 })
+    return () => navigator.geolocation.clearWatch(watch)
+  }, [sharing, me, preview, store])
+
+  const toggleShare = async () => {
+    const next = !sharing
+    setSharing(next)
+    try { localStorage.setItem(SHARE_KEY, next ? 'on' : 'off') } catch { void 0 }
+    if (next) { toast('Sharing your live location with the group.') }
+    else { setGeoError(null); if (me) await store.stopLocation(me.id); toast('Live location off.') }
   }
-  return <div className="page-body standalone-page"><div className="page-heading"><div><span className="eyebrow">KEEP EVERYONE IN THE LOOP</span><h2>Send to the group<span className="heading-dot">.</span></h2></div><span className="page-symbol"><Send size={24} /></span></div>
-    <div className="share-meta"><span className="whatsapp-dot" /><span>WhatsApp-ready</span><span>{progress(data).done}/{data.tasks.length} sorted</span></div>
-    <div className="share-actions"><button className="button button-primary" onClick={() => void copy()}>{copied ? <Check size={18} /> : <Copy size={18} />}{copied ? 'Copied' : 'Copy to clipboard'}</button>
-      {typeof navigator.share === 'function' && <button className="button button-secondary" onClick={async () => {
-        try { await navigator.share({ title: TRIP_TITLE, text }) } catch (error) {
-          if ((error as Error).name !== 'AbortError') toast.error('Sharing is unavailable. Copy the message instead.')
-        }
-      }}><ArrowUpRight size={18} />Share</button>}
+
+  const centerGroup = () => {
+    const map = mapRef.current
+    if (!map || !located.length) return
+    const points = located.map((loc) => [loc.lat, loc.lng] as L.LatLngTuple)
+    if (points.length === 1) map.setView(points[0], 15)
+    else map.fitBounds(L.latLngBounds(points).pad(0.3))
+  }
+
+  const findMe = () => {
+    const map = mapRef.current
+    if (!map) return
+    if (myLoc) { map.setView([myLoc.lat, myLoc.lng], 16); return }
+    if (navigator.geolocation) navigator.geolocation.getCurrentPosition(
+      (position) => map.setView([position.coords.latitude, position.coords.longitude], 16),
+      () => toast.error('Could not find your location.'), { enableHighAccuracy: true, timeout: 15_000 })
+  }
+
+  return <div className="page-body standalone-page map-page">
+    <div className="page-heading"><div><span className="eyebrow">FIND EACH OTHER</span><h2>Live map<span className="heading-dot">.</span></h2></div><span className="page-symbol"><MapPinned size={24} /></span></div>
+    <div className="map-wrap">
+      <div className="map-canvas" ref={container} role="application" aria-label="Live location map of the group" />
+      <div className="map-floats">
+        <IconButton label="Center on the group" className="map-float" onClick={centerGroup}><Users size={18} /></IconButton>
+        <IconButton label="Find me" className="map-float" onClick={findMe}><Crosshair size={18} /></IconButton>
+      </div>
+      {located.length === 0 && <div className="map-hint"><RadioTower size={18} /><p>No one is sharing yet. Turn on your live location so the group can find you if you split up.</p></div>}
     </div>
-    <textarea className="share-text" aria-label="WhatsApp status message" ref={textArea} value={text} readOnly spellCheck={false} />
-    <p className="privacy-note"><ArrowDownToLine size={14} />Passport scans and private booking codes belong in the group's private folder, not this app.</p>
+    <p className="map-credit">Map &copy; OpenStreetMap &middot; &copy; CARTO</p>
+    <button className={`button full-width share-toggle ${sharing ? 'button-secondary' : 'button-primary'}`} onClick={() => void toggleShare()} disabled={preview || !me}>
+      {sharing ? <><WifiOff size={17} />Stop sharing my location</> : <><LocateFixed size={17} />Share my live location</>}
+    </button>
+    {geoError && <p className="map-error"><TriangleAlert size={14} />{geoError}</p>}
+    {preview && <p className="preview-form-note">Read-only preview. Connect Supabase to share live location.</p>}
+    <ul className="map-people" aria-label="Who is sharing">
+      {data.travellers.map((traveller) => {
+        const loc = located.find((item) => item.traveller_id === traveller.id)
+        const stale = loc ? now - new Date(loc.updated_at).getTime() > STALE_MS : false
+        return <li className="map-person" key={traveller.id}>
+          <Avatar traveller={traveller} small mine={traveller.id === me?.id} />
+          <span className="map-person-name">{traveller.name.replace(/\s*\(Admin\)$/i, '')}</span>
+          <span className={`map-person-status ${loc ? (stale ? 'stale' : 'live') : 'off'}`}>{loc ? (stale ? relativeTime(loc.updated_at, new Date(now)) : 'Live now') : 'Not sharing'}</span>
+        </li>
+      })}
+    </ul>
+    <p className="privacy-note">Your live location is shared with everyone who has this link while sharing is on. Turn it off anytime &mdash; no location history is kept.</p>
   </div>
 }

@@ -1,11 +1,13 @@
 export type Category = 'urgent' | 'booking' | 'optional' | 'admin'
 export type TaskStatus = 'todo' | 'doing' | 'done'
 export type Filter = 'all' | Category | 'mine' | 'done'
+export type ExpenseCategory = 'food' | 'transport' | 'stay' | 'shopping' | 'activities' | 'misc'
 
 export interface Traveller {
   id: string
   name: string
   colour: string
+  budget_thb: number | null
   created_at: string
 }
 
@@ -63,6 +65,24 @@ export interface Activity {
   created_at: string
 }
 
+export interface Expense {
+  id: string
+  traveller_id: string
+  amount_thb: number
+  category: ExpenseCategory
+  note: string | null
+  spent_at: string
+  created_at: string
+}
+
+export interface Location {
+  traveller_id: string
+  lat: number
+  lng: number
+  accuracy: number | null
+  updated_at: string
+}
+
 export interface TripData {
   travellers: Traveller[]
   tasks: Task[]
@@ -70,6 +90,8 @@ export interface TripData {
   comments: Comment[]
   itinerary_days: ItineraryDay[]
   activity: Activity[]
+  expenses: Expense[]
+  locations: Location[]
 }
 
 export type TaskPatch = Partial<Pick<Task,
@@ -81,3 +103,5 @@ export type NewTask = Pick<Task,
   'title' | 'detail' | 'category' | 'owner_id' | 'due_date' |
   'trip_day' | 'est_cost_thb' | 'is_everyone'
 >
+
+export type NewExpense = Pick<Expense, 'traveller_id' | 'amount_thb' | 'category' | 'note' | 'spent_at'>

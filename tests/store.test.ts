@@ -15,8 +15,13 @@ function fixture() {
       return vi.fn()
     },
     mutate: vi.fn(async () => 'saved'),
-    addTraveller: vi.fn(async (name, colour) => ({ id: 'new', name, colour, created_at: new Date().toISOString() })),
+    addTraveller: vi.fn(async (name, colour) => ({ id: 'new', name, colour, budget_thb: null, created_at: new Date().toISOString() })),
     renameTraveller: vi.fn(async () => {}),
+    setBudget: vi.fn(async () => {}),
+    addExpense: vi.fn(async (expense) => ({ id: 'exp', created_at: new Date().toISOString(), ...expense })),
+    deleteExpense: vi.fn(async () => {}),
+    upsertLocation: vi.fn(async () => {}),
+    clearLocation: vi.fn(async () => {}),
   }
   return {
     backend, emit: () => change(), connect: (status: SocketState) => connection(status),

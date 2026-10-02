@@ -1,5 +1,5 @@
 import source from '../data/seed.json' with { type: 'json' }
-import type { Category, Filter, Task, TaskStatus, TripData } from './types.ts'
+import type { Category, Expense, ExpenseCategory, Filter, Task, TaskStatus, Traveller, TripData } from './types.ts'
 
 export const TRIP_TITLE = 'Thailand Nov 2026'
 export const TRIP_START = '2026-10-31'
@@ -10,7 +10,11 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   urgent: 'Urgent', booking: 'To book', optional: 'Optional', admin: 'Admin',
 }
 export const EMPTY_DATA: TripData = {
-  travellers: [], tasks: [], task_completions: [], comments: [], itinerary_days: [], activity: [],
+  travellers: [], tasks: [], task_completions: [], comments: [], itinerary_days: [], activity: [], expenses: [], locations: [],
+}
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = ['food', 'transport', 'stay', 'shopping', 'activities', 'misc']
+export const EXPENSE_LABELS: Record<ExpenseCategory, string> = {
+  food: 'Food', transport: 'Transport', stay: 'Stay', shopping: 'Shopping', activities: 'Activities', misc: 'Misc',
 }
 
 const seedDate = '2026-09-23T00:00:00.000Z'
@@ -20,7 +24,7 @@ export const seedId = (kind: number, index: number) =>
 export function seedData(): TripData {
   return {
     travellers: source.travellers.map((traveller, index) => ({
-      ...traveller, id: seedId(0, index), created_at: seedDate,
+      ...traveller, id: seedId(0, index), budget_thb: null, created_at: seedDate,
     })),
     tasks: source.tasks.map((task, index) => ({
       status: 'todo', owner_id: null, due_date: null, trip_day: null,
@@ -32,7 +36,7 @@ export function seedData(): TripData {
     itinerary_days: source.itinerary_days.map((day, index) => ({
       conflict_note: null, ...day, id: seedId(2, index), created_at: seedDate,
     })),
-    task_completions: [], comments: [], activity: [],
+    task_completions: [], comments: [], activity: [], expenses: [], locations: [],
   }
 }
 
@@ -117,6 +121,37 @@ export function money(amount: number, currency: 'THB' | 'INR' = 'THB') {
   return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-GB', {
     style: 'currency', currency, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0,
   }).format(amount)
+}
+
+export function travellerExpenses(data: TripData, id: string | null): Expense[] {
+  if (!id) return []
+  return data.expenses
+    .filter((expense) => expense.traveller_id === id)
+    .sort((first, second) => second.spent_at.localeCompare(first.spent_at) || second.created_at.localeCompare(first.created_at))
+}
+
+export function sumExpenses(expenses: Expense[]): number {
+  return expenses.reduce((total, expense) => total + Number(expense.amount_thb), 0)
+}
+
+export function spendByCategory(expenses: Expense[]): { category: ExpenseCategory; total: number }[] {
+  const totals = Object.fromEntries(EXPENSE_CATEGORIES.map((category) => [category, 0])) as Record<ExpenseCategory, number>
+  for (const expense of expenses) totals[expense.category] += Number(expense.amount_thb)
+  return EXPENSE_CATEGORIES
+    .map((category) => ({ category, total: totals[category] }))
+    .filter((entry) => entry.total > 0)
+    .sort((first, second) => second.total - first.total)
+}
+
+export function groupSpend(data: TripData): { traveller: Traveller; total: number }[] {
+  return data.travellers
+    .map((traveller) => ({ traveller, total: sumExpenses(data.expenses.filter((expense) => expense.traveller_id === traveller.id)) }))
+    .sort((first, second) => second.total - first.total)
+}
+
+export function spendRemaining(budget: number | null, spent: number): number | null {
+  if (budget === null || budget <= 0) return null
+  return budget - spent
 }
 
 export function shareSummary(data: TripData, today = todayKey()): string {

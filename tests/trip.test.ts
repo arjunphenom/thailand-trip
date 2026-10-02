@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { costs, countdown, dueState, filterTasks, progress, safeBookingUrl, seedData, shareSummary, taskStatus, todayKey } from '../src/lib/trip.ts'
+import { costs, countdown, dueState, filterTasks, groupSpend, progress, safeBookingUrl, seedData, shareSummary, spendByCategory, spendRemaining, sumExpenses, taskStatus, todayKey, travellerExpenses } from '../src/lib/trip.ts'
 
 describe('the complete trip seed', () => {
   it('keeps all six travellers, 22 tasks, nine days and three conflicts', () => {
     const data = seedData()
     expect(data.travellers).toHaveLength(6)
     expect(data.travellers.map((traveller) => traveller.name)).toEqual([
-      'ACHU (Admin)', 'AJ', 'DRUNK', 'DK', 'AMROWW', 'small_dude',
+      'Admin', 'AJ', 'DRUNK', 'DK', 'AMROWW', 'small_dude',
     ])
     expect(data.travellers[5].id).toBe('00000000-0000-4000-8000-000000000006')
     expect(data.tasks).toHaveLength(22)
@@ -89,7 +89,7 @@ describe('trip dates, money and sharing', () => {
     data.tasks[1].status = 'done'
     const summary = shareSummary(data, '2026-09-23')
     expect(summary).toContain('*1/22 sorted*')
-    expect(summary).toContain(`${data.tasks[0].title} (ACHU (Admin))`)
+    expect(summary).toContain(`${data.tasks[0].title} (Admin)`)
     expect(summary).toContain('(0/6 done)')
     expect(summary).toContain(`*DONE*\n- ${data.tasks[1].title}`)
   })
@@ -97,5 +97,34 @@ describe('trip dates, money and sharing', () => {
   it('does not allow executable booking URLs', () => {
     expect(safeBookingUrl('javascript:alert(1)')).toBeNull()
     expect(safeBookingUrl('https://example.com/booking')).toBe('https://example.com/booking')
+  })
+})
+
+describe('personal spend tracking', () => {
+  it('orders entries, totals them, splits by category and computes remaining', () => {
+    const data = seedData()
+    const me = data.travellers[0].id
+    const other = data.travellers[1].id
+    data.expenses = [
+      { id: '1', traveller_id: me, amount_thb: 300, category: 'food', note: 'Pad thai', spent_at: '2026-11-01T10:00:00Z', created_at: '2026-11-01T10:00:00Z' },
+      { id: '2', traveller_id: me, amount_thb: 200, category: 'food', note: null, spent_at: '2026-11-02T10:00:00Z', created_at: '2026-11-02T10:00:00Z' },
+      { id: '3', traveller_id: me, amount_thb: 500, category: 'transport', note: null, spent_at: '2026-11-03T10:00:00Z', created_at: '2026-11-03T10:00:00Z' },
+      { id: '4', traveller_id: other, amount_thb: 1000, category: 'shopping', note: null, spent_at: '2026-11-01T10:00:00Z', created_at: '2026-11-01T10:00:00Z' },
+    ]
+    const mine = travellerExpenses(data, me)
+    expect(mine.map((expense) => expense.id)).toEqual(['3', '2', '1'])
+    expect(sumExpenses(mine)).toBe(1000)
+    expect(spendByCategory(mine)).toEqual([
+      { category: 'food', total: 500 },
+      { category: 'transport', total: 500 },
+    ])
+    expect(spendRemaining(1500, 1000)).toBe(500)
+    expect(spendRemaining(null, 1000)).toBeNull()
+    expect(spendRemaining(0, 1000)).toBeNull()
+    const group = groupSpend(data)
+    expect(group).toHaveLength(6)
+    expect(group[0].total).toBe(1000)
+    expect(group.find((row) => row.traveller.id === me)?.total).toBe(1000)
+    expect(travellerExpenses(data, null)).toEqual([])
   })
 })
