@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { CATEGORIES, CATEGORY_LABELS, DEFAULT_BUDGET_THB, EXPENSE_CATEGORIES, EXPENSE_LABELS, countdown, costs, daysBetween, filterTasks, formatDate, groupSpend, money, progress, relativeTime, settlements, splitBalances, spendByCategory, sumExpenses, taskStatus, travellerExpenses } from './lib/trip.ts'
 import type { ExpenseCategory, Filter, ItineraryDay } from './lib/types.ts'
 import { useInrRate } from './lib/rate.ts'
+import { useWeather, weatherLabel } from './lib/weather.ts'
 import { useTrip } from './lib/use-trip.tsx'
 import { AddTaskSheet, TaskCard, UnclaimedHint } from './components/TaskCard.tsx'
 import { Avatar, EmptyState, IconButton, Markdown, PhotoCredit } from './components/ui.tsx'
@@ -145,9 +146,25 @@ export function DayCard({ day }: { day: ItineraryDay }) {
   </article>
 }
 
+function TripNow() {
+  const weather = useWeather()
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const timer = setInterval(() => setNow(new Date()), 30_000); return () => clearInterval(timer) }, [])
+  const clock = (zone: string) => new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: true }).format(now)
+  return <section className="trip-now" aria-label="Local times and weather">
+    <div className="clock-row">
+      <div className="clock"><span className="clock-flag">🇮🇳</span><div><strong>{clock('Asia/Kolkata')}</strong><span>India</span></div></div>
+      <span className="clock-sep" aria-hidden="true" />
+      <div className="clock"><span className="clock-flag">🇹🇭</span><div><strong>{clock('Asia/Bangkok')}</strong><span>Bangkok</span></div></div>
+    </div>
+    <div className="weather-row">{weather.map((entry) => { const label = weatherLabel(entry.code); return <div className="weather-city" key={entry.city}><span className="weather-icon" title={label.text}>{label.icon}</span><span className="weather-temp">{entry.temp === null ? '—' : `${entry.temp}°`}</span><span className="weather-name">{entry.city}</span></div> })}</div>
+  </section>
+}
+
 export function ItineraryPage() {
   const { data } = useTrip()
   return <div className="page-body standalone-page"><div className="page-heading"><div><span className="eyebrow">31 OCT &ndash; 8 NOV 2026</span><h2>Day by day<span className="heading-dot">.</span></h2></div><span className="page-symbol"><MapPin size={24} /></span></div>
+    <TripNow />
     <div className="itinerary-route"><span>Phuket</span><ArrowRight size={14} /><span>Pattaya</span><ArrowRight size={14} /><span>Bangkok</span></div>
     {data.itinerary_days.length ? <div className="timeline">{data.itinerary_days.map((day) => <div className="timeline-day" key={day.id}>
       <span className="timeline-number">{String(daysBetween('2026-10-31', day.day_date) + 1).padStart(2, '0')}</span><DayCard day={day} />
@@ -166,6 +183,8 @@ export function MoneyPage() {
   const [amountValue, setAmountValue] = useState('')
   const [splitOn, setSplitOn] = useState(false)
   const [splitWith, setSplitWith] = useState<string[]>([])
+  const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal')
+  const [customShares, setCustomShares] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLFormElement>(null)
 
   const mine = travellerExpenses(data, me?.id ?? null)
@@ -182,26 +201,41 @@ export function MoneyPage() {
   const maxCategory = Math.max(1, ...breakdown.map((row) => row.total))
   const planning = costs(data)
   const todayField = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
-  const splitShare = splitOn && splitWith.length >= 2 ? (Number(amountValue) || 0) / splitWith.length : 0
-  const hasShared = data.expenses.some((expense) => expense.split_with && expense.split_with.length > 0)
+  const splitTotal = Number(amountValue) || 0
+  const equalShare = splitWith.length ? splitTotal / splitWith.length : 0
+  const customSum = splitWith.reduce((sum, id) => sum + (Number(customShares[id]) || 0), 0)
+  const customLeft = Math.round((splitTotal - customSum) * 100) / 100
+  const splitValid = !splitOn || (splitWith.length >= 2 && (splitMode === 'equal' || Math.abs(customLeft) < 1))
+  const hasShared = data.expenses.some((expense) => expense.split_shares && Object.keys(expense.split_shares).length > 0)
   const settleBalances = splitBalances(data).filter((entry) => Math.abs(entry.net) >= 1)
   const settleList = settlements(data)
+  const travellerById = (id: string) => data.travellers.find((traveller) => traveller.id === id)
 
   const addExpense = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!me) return
     const amount = Number(amountValue)
     if (!Number.isFinite(amount) || amount <= 0) { toast.error('Enter an amount greater than zero.'); return }
+    let shares: Record<string, number> | null = null
+    if (splitOn && splitWith.length >= 2) {
+      if (splitMode === 'equal') {
+        const per = Math.round(amount / splitWith.length * 100) / 100
+        shares = Object.fromEntries(splitWith.map((id) => [id, per]))
+        shares[splitWith[0]] = Math.round((per + amount - per * splitWith.length) * 100) / 100
+      } else {
+        if (Math.abs(amount - splitWith.reduce((sum, id) => sum + (Number(customShares[id]) || 0), 0)) >= 1) { toast.error('Custom shares must add up to the total.'); return }
+        shares = Object.fromEntries(splitWith.map((id) => [id, Math.round((Number(customShares[id]) || 0) * 100) / 100]))
+      }
+    }
     const fields = new FormData(event.currentTarget)
     const note = String(fields.get('note') ?? '').trim()
     const when = String(fields.get('spent_at') ?? '')
-    const split = splitOn && splitWith.length >= 2 ? splitWith : null
     const ok = await save(() => store.addExpense({
       traveller_id: me.id, amount_thb: Math.round(amount * 100) / 100, category,
-      note: note || null, split_with: split,
+      note: note || null, split_shares: shares,
       spent_at: when ? new Date(`${when}T12:00:00`).toISOString() : new Date().toISOString(),
-    }), split ? 'Added and split with the group.' : 'Added to your spending.')
-    if (ok) { formRef.current?.reset(); setAmountValue(''); setCategory('food'); setSplitOn(false); setSplitWith([]) }
+    }), shares ? 'Added and split with the group.' : 'Added to your spending.')
+    if (ok) { formRef.current?.reset(); setAmountValue(''); setCategory('food'); setSplitOn(false); setSplitWith([]); setSplitMode('equal'); setCustomShares({}) }
   }
 
   const saveBudget = async (event: FormEvent<HTMLFormElement>) => {
@@ -257,11 +291,22 @@ export function MoneyPage() {
           <input name="spent_at" type="date" aria-label="Date" defaultValue={todayField} />
         </div>
         <div className="split-bar">
-          <button type="button" className={`split-switch ${splitOn ? 'on' : ''}`} aria-pressed={splitOn} onClick={() => setSplitOn((on) => { const next = !on; if (next && splitWith.length === 0) setSplitWith(data.travellers.map((traveller) => traveller.id)); return next })}><Users size={15} />Split this</button>
-          {splitOn && splitWith.length >= 2 && <span className="split-hint">{money(splitShare)} each · {splitWith.length}</span>}
+          <button type="button" className={`split-switch ${splitOn ? 'on' : ''}`} aria-pressed={splitOn} onClick={() => setSplitOn((on) => { const next = !on; if (next) { setSplitWith(me ? [me.id] : []); setSplitMode('equal'); setCustomShares({}) } return next })}><Users size={15} />Split this</button>
+          {splitOn && <div className="split-modes" role="group" aria-label="Split type">
+            <button type="button" className={splitMode === 'equal' ? 'on' : ''} aria-pressed={splitMode === 'equal'} onClick={() => setSplitMode('equal')}>Equal</button>
+            <button type="button" className={splitMode === 'custom' ? 'on' : ''} aria-pressed={splitMode === 'custom'} onClick={() => { setSplitMode('custom'); const per = splitWith.length ? Math.round((Number(amountValue) || 0) / splitWith.length * 100) / 100 : 0; setCustomShares(Object.fromEntries(splitWith.map((id) => [id, per ? String(per) : '']))) }}>Custom</button>
+          </div>}
         </div>
-        {splitOn && <div className="split-picker" role="group" aria-label="Split with">{data.travellers.map((traveller) => <button type="button" key={traveller.id} className={`split-chip ${splitWith.includes(traveller.id) ? 'selected' : ''}`} aria-pressed={splitWith.includes(traveller.id)} onClick={() => setSplitWith((current) => current.includes(traveller.id) ? current.filter((id) => id !== traveller.id) : [...current, traveller.id])}><Avatar traveller={traveller} small />{traveller.name.replace(/\s*\(Admin\)$/i, '')}</button>)}</div>}
-        <button className="button button-primary full-width" type="submit" disabled={preview || !me}><Plus size={17} />Add spend</button>
+        {splitOn && <>
+          <div className="split-picker" role="group" aria-label="Split with">{data.travellers.map((traveller) => <button type="button" key={traveller.id} className={`split-chip ${splitWith.includes(traveller.id) ? 'selected' : ''}`} aria-pressed={splitWith.includes(traveller.id)} onClick={() => setSplitWith((current) => current.includes(traveller.id) ? current.filter((id) => id !== traveller.id) : [...current, traveller.id])}><Avatar traveller={traveller} small />{traveller.name.replace(/\s*\(Admin\)$/i, '')}</button>)}</div>
+          {splitWith.length < 2 ? <p className="split-hint">Pick at least 2 people to split with.</p>
+            : splitMode === 'equal' ? <p className="split-hint">{money(equalShare)} each · {splitWith.length} people</p>
+            : <div className="custom-shares">
+                {splitWith.map((id) => { const traveller = travellerById(id); return <label className="custom-share" key={id}><Avatar traveller={traveller} small /><span>{traveller?.name.replace(/\s*\(Admin\)$/i, '') ?? '—'}</span><input type="number" inputMode="decimal" min={0} value={customShares[id] ?? ''} onChange={(event) => setCustomShares((current) => ({ ...current, [id]: event.target.value }))} placeholder="0" aria-label={`Share for ${traveller?.name ?? 'traveller'}`} /></label> })}
+                <div className={`custom-foot ${Math.abs(customLeft) < 1 ? 'ok' : ''}`}>{Math.abs(customLeft) < 1 ? 'Balanced ✓' : customLeft > 0 ? `${money(customLeft)} left to assign` : `${money(-customLeft)} over`}</div>
+              </div>}
+        </>}
+        <button className="button button-primary full-width" type="submit" disabled={preview || !me || !splitValid}><Plus size={17} />Add spend</button>
       </form>
       {preview && <p className="preview-form-note">Read-only preview. Connect Supabase to track spending.</p>}
     </section>
@@ -305,8 +350,13 @@ export function MoneyPage() {
         </div>)}</div>
         {settleList.length > 0 && <div className="settle-list"><span className="settle-head">Simplest way to settle</span>{settleList.map((transfer, index) => <div className="settle-row" key={index}>
           <Avatar traveller={transfer.from} small /><span className="settle-text"><strong>{transfer.from.name.replace(/\s*\(Admin\)$/i, '')}</strong> pays <strong>{transfer.to.name.replace(/\s*\(Admin\)$/i, '')}</strong></span><span className="settle-amt">{money(transfer.amount)}</span>
+          <button type="button" className="settle-paid" disabled={preview} onClick={() => void save(() => store.addRepayment({ from_id: transfer.from.id, to_id: transfer.to.id, amount_thb: transfer.amount }), 'Marked as settled.')}>Mark paid</button>
         </div>)}</div>}
       </> : <p className="empty-inline">All shared costs are settled up.</p>) : <p className="empty-inline">No shared expenses yet. Tick &ldquo;Split this&rdquo; when adding a spend to split it with the group.</p>}
+      {data.repayments.length > 0 && <div className="repaid-list">{data.repayments.map((repayment) => { const from = travellerById(repayment.from_id); const to = travellerById(repayment.to_id); return <div className="repaid-row" key={repayment.id}>
+        <Check size={14} /><span className="repaid-text">{from?.name.replace(/\s*\(Admin\)$/i, '') ?? '—'} paid {to?.name.replace(/\s*\(Admin\)$/i, '') ?? '—'} {money(Number(repayment.amount_thb))}</span>
+        <IconButton label="Undo settlement" className="repaid-undo" disabled={preview} onClick={() => void save(() => store.deleteRepayment(repayment.id))}><Trash2 size={14} /></IconButton>
+      </div> })}</div>}
     </section>
 
     <details className="planning-budget"><summary><Wallet size={15} /><span>Planning estimates</span><span className="count-badge">{money(planning.estimated)}</span><ChevronDown size={16} /></summary>

@@ -11,7 +11,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   urgent: 'Urgent', booking: 'To book', optional: 'Optional', admin: 'Admin',
 }
 export const EMPTY_DATA: TripData = {
-  travellers: [], tasks: [], task_completions: [], comments: [], itinerary_days: [], activity: [], expenses: [], locations: [],
+  travellers: [], tasks: [], task_completions: [], comments: [], itinerary_days: [], activity: [], expenses: [], locations: [], repayments: [],
 }
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = ['food', 'transport', 'stay', 'shopping', 'activities', 'misc']
 export const EXPENSE_LABELS: Record<ExpenseCategory, string> = {
@@ -37,7 +37,7 @@ export function seedData(): TripData {
     itinerary_days: source.itinerary_days.map((day, index) => ({
       conflict_note: null, ...day, id: seedId(2, index), created_at: seedDate,
     })),
-    task_completions: [], comments: [], activity: [], expenses: [], locations: [],
+    task_completions: [], comments: [], activity: [], expenses: [], locations: [], repayments: [],
   }
 }
 
@@ -158,16 +158,20 @@ export function spendRemaining(budget: number | null, spent: number): number | n
 export interface SettleBalance { traveller: Traveller; net: number }
 export interface Settlement { from: Traveller; to: Traveller; amount: number }
 
-// Net per traveller across shared expenses: positive means they are owed money, negative means they owe.
+// Net per traveller across shared expenses and repayments: positive means they are owed money, negative means they owe.
 export function splitBalances(data: TripData): SettleBalance[] {
   const net = new Map<string, number>(data.travellers.map((traveller) => [traveller.id, 0]))
   for (const expense of data.expenses) {
-    const parts = expense.split_with?.filter((id) => net.has(id)) ?? []
-    if (parts.length === 0) continue
-    const amount = Number(expense.amount_thb)
-    const share = amount / parts.length
-    if (net.has(expense.traveller_id)) net.set(expense.traveller_id, (net.get(expense.traveller_id) ?? 0) + amount)
-    for (const id of parts) net.set(id, (net.get(id) ?? 0) - share)
+    const shares = expense.split_shares
+    if (!shares) continue
+    const entries = Object.entries(shares).filter(([id]) => net.has(id))
+    if (entries.length === 0) continue
+    if (net.has(expense.traveller_id)) net.set(expense.traveller_id, (net.get(expense.traveller_id) ?? 0) + Number(expense.amount_thb))
+    for (const [id, amount] of entries) net.set(id, (net.get(id) ?? 0) - Number(amount))
+  }
+  for (const repayment of data.repayments) {
+    if (net.has(repayment.from_id)) net.set(repayment.from_id, (net.get(repayment.from_id) ?? 0) + Number(repayment.amount_thb))
+    if (net.has(repayment.to_id)) net.set(repayment.to_id, (net.get(repayment.to_id) ?? 0) - Number(repayment.amount_thb))
   }
   return data.travellers.map((traveller) => ({ traveller, net: Math.round((net.get(traveller.id) ?? 0) * 100) / 100 }))
 }

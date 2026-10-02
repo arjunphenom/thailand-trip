@@ -17,6 +17,7 @@ create table if not exists public.expenses (
 create index if not exists expenses_traveller_idx on public.expenses(traveller_id, spent_at desc);
 
 alter table public.expenses add column if not exists split_with uuid[];
+alter table public.expenses add column if not exists split_shares jsonb;
 
 create table if not exists public.locations (
   traveller_id uuid primary key references public.travellers(id) on delete cascade,
@@ -26,6 +27,14 @@ create table if not exists public.locations (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.repayments (
+  id uuid primary key default gen_random_uuid(),
+  from_id uuid not null references public.travellers(id) on delete cascade,
+  to_id uuid not null references public.travellers(id) on delete cascade,
+  amount_thb numeric(12,2) not null check (amount_thb > 0),
+  created_at timestamptz not null default now()
+);
+
 do $$
 declare
   table_name text;
@@ -33,7 +42,7 @@ begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     create publication supabase_realtime;
   end if;
-  foreach table_name in array array['expenses', 'locations'] loop
+  foreach table_name in array array['expenses', 'locations', 'repayments'] loop
     execute format('alter table public.%I enable row level security', table_name);
     if not exists (
       select 1 from pg_policies

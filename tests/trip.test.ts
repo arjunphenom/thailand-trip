@@ -130,20 +130,35 @@ describe('personal spend tracking', () => {
 })
 
 describe('split and settle up', () => {
-  it('splits shared expenses equally and suggests minimal transfers', () => {
+  it('splits shared expenses and settles with repayments', () => {
     const data = seedData()
     const [a, b, c] = data.travellers
     data.expenses = [
-      { id: '1', traveller_id: a.id, amount_thb: 3000, category: 'food', note: null, split_with: [a.id, b.id, c.id], spent_at: '2026-11-01T10:00:00Z', created_at: '2026-11-01T10:00:00Z' },
-      { id: '2', traveller_id: b.id, amount_thb: 600, category: 'transport', note: null, split_with: null, spent_at: '2026-11-01T10:00:00Z', created_at: '2026-11-01T10:00:00Z' },
+      { id: '1', traveller_id: a.id, amount_thb: 3000, category: 'food', note: null, split_shares: { [a.id]: 1000, [b.id]: 1000, [c.id]: 1000 }, spent_at: '2026-11-01T10:00:00Z', created_at: '2026-11-01T10:00:00Z' },
+      { id: '2', traveller_id: b.id, amount_thb: 600, category: 'transport', note: null, split_shares: null, spent_at: '2026-11-01T10:00:00Z', created_at: '2026-11-01T10:00:00Z' },
+    ]
+    expect(splitBalances(data).find((entry) => entry.traveller.id === a.id)?.net).toBe(2000)
+    expect(settlements(data)).toHaveLength(2)
+
+    data.repayments = [{ id: 'r1', from_id: b.id, to_id: a.id, amount_thb: 1000, created_at: '2026-11-02T10:00:00Z' }]
+    const after = splitBalances(data)
+    expect(after.find((entry) => entry.traveller.id === a.id)?.net).toBe(1000)
+    expect(after.find((entry) => entry.traveller.id === b.id)?.net).toBe(0)
+    const remaining = settlements(data)
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].from.id).toBe(c.id)
+    expect(remaining[0].to.id).toBe(a.id)
+    expect(remaining[0].amount).toBe(1000)
+  })
+
+  it('supports custom unequal split shares', () => {
+    const data = seedData()
+    const [a, b] = data.travellers
+    data.expenses = [
+      { id: '1', traveller_id: a.id, amount_thb: 1000, category: 'food', note: null, split_shares: { [a.id]: 200, [b.id]: 800 }, spent_at: 't', created_at: 't' },
     ]
     const balances = splitBalances(data)
-    expect(balances.find((entry) => entry.traveller.id === a.id)?.net).toBe(2000)
-    expect(balances.find((entry) => entry.traveller.id === b.id)?.net).toBe(-1000)
-    expect(balances.find((entry) => entry.traveller.id === c.id)?.net).toBe(-1000)
-    const transfers = settlements(data)
-    expect(transfers).toHaveLength(2)
-    expect(transfers.every((transfer) => transfer.to.id === a.id)).toBe(true)
-    expect(transfers.reduce((sum, transfer) => sum + transfer.amount, 0)).toBe(2000)
+    expect(balances.find((entry) => entry.traveller.id === a.id)?.net).toBe(800)
+    expect(balances.find((entry) => entry.traveller.id === b.id)?.net).toBe(-800)
   })
 })

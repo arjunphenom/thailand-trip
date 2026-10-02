@@ -71,8 +71,16 @@ export interface Expense {
   amount_thb: number
   category: ExpenseCategory
   note: string | null
-  split_with: string[] | null
+  split_shares: Record<string, number> | null
   spent_at: string
+  created_at: string
+}
+
+export interface Repayment {
+  id: string
+  from_id: string
+  to_id: string
+  amount_thb: number
   created_at: string
 }
 
@@ -93,6 +101,7 @@ export interface TripData {
   activity: Activity[]
   expenses: Expense[]
   locations: Location[]
+  repayments: Repayment[]
 }
 
 export type TaskPatch = Partial<Pick<Task,
@@ -105,4 +114,5 @@ export type NewTask = Pick<Task,
   'trip_day' | 'est_cost_thb' | 'is_everyone'
 >
 
-export type NewExpense = Pick<Expense, 'traveller_id' | 'amount_thb' | 'category' | 'note' | 'split_with' | 'spent_at'>
+export type NewExpense = Pick<Expense, 'traveller_id' | 'amount_thb' | 'category' | 'note' | 'split_shares' | 'spent_at'>
+export type NewRepayment = Pick<Repayment, 'from_id' | 'to_id' | 'amount_thb'>

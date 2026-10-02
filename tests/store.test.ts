@@ -22,6 +22,8 @@ function fixture() {
     deleteExpense: vi.fn(async () => {}),
     upsertLocation: vi.fn(async () => {}),
     clearLocation: vi.fn(async () => {}),
+    addRepayment: vi.fn(async () => {}),
+    deleteRepayment: vi.fn(async () => {}),
   }
   return {
     backend, emit: () => change(), connect: (status: SocketState) => connection(status),

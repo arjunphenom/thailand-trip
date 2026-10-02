@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Expense, NewExpense, Traveller, TripData } from './types.ts'
+import type { Expense, NewExpense, NewRepayment, Traveller, TripData } from './types.ts'
 
 export type SocketState = 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR'
 export type Mutation = 'cycle_status' | 'update_task' | 'set_completion' | 'add_comment' | 'create_task'
@@ -16,9 +16,11 @@ export interface TripBackend {
   deleteExpense: (id: string) => Promise<void>
   upsertLocation: (position: LivePosition) => Promise<void>
   clearLocation: (id: string) => Promise<void>
+  addRepayment: (repayment: NewRepayment) => Promise<void>
+  deleteRepayment: (id: string) => Promise<void>
 }
 
-const TABLES: (keyof TripData)[] = ['travellers', 'tasks', 'task_completions', 'comments', 'itinerary_days', 'activity', 'expenses', 'locations']
+const TABLES: (keyof TripData)[] = ['travellers', 'tasks', 'task_completions', 'comments', 'itinerary_days', 'activity', 'expenses', 'locations', 'repayments']
 
 export function createBackend(): TripBackend | null {
   const url = import.meta.env.VITE_SUPABASE_URL
@@ -41,6 +43,7 @@ export function createBackend(): TripBackend | null {
         client.from('activity').select('*').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(20).abortSignal(timeout),
         client.from('expenses').select('*').order('spent_at', { ascending: false }).order('created_at', { ascending: false }).abortSignal(timeout),
         client.from('locations').select('*').abortSignal(timeout),
+        client.from('repayments').select('*').order('created_at', { ascending: false }).abortSignal(timeout),
       ])
       const failure = results.find((result) => result.error)
       if (failure?.error) throw failure.error
@@ -96,6 +99,16 @@ export function createBackend(): TripBackend | null {
     },
     async clearLocation(id) {
       const { error } = await client.from('locations').delete().eq('traveller_id', id)
+        .abortSignal(AbortSignal.timeout(15_000))
+      if (error) throw error
+    },
+    async addRepayment(repayment) {
+      const { error } = await client.from('repayments').insert(repayment)
+        .abortSignal(AbortSignal.timeout(15_000))
+      if (error) throw error
+    },
+    async deleteRepayment(id) {
+      const { error } = await client.from('repayments').delete().eq('id', id)
         .abortSignal(AbortSignal.timeout(15_000))
       if (error) throw error
     },

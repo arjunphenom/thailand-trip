@@ -1,6 +1,6 @@
 import { EMPTY_DATA, seedData } from './trip.ts'
 import type { LivePosition, Mutation, SocketState, TripBackend } from './backend.ts'
-import type { NewExpense, TripData } from './types.ts'
+import type { NewExpense, NewRepayment, TripData } from './types.ts'
 
 export type Connection = 'preview' | 'connecting' | 'connected' | 'reconnecting' | 'offline'
 export interface TripSnapshot {
@@ -171,6 +171,12 @@ export class TripStore {
 
   deleteExpense = (id: string) =>
     this.write(`expense:${id}`, (backend) => backend.deleteExpense(id))
+
+  addRepayment = (repayment: NewRepayment) =>
+    this.write('repayment', (backend) => backend.addRepayment(repayment))
+
+  deleteRepayment = (id: string) =>
+    this.write(`repayment:${id}`, (backend) => backend.deleteRepayment(id))
 
   shareLocation = async (position: LivePosition) => {
     if (!this.backend) throw new Error('This is a read-only preview. Connect Supabase to share your location.')
