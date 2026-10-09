@@ -18,8 +18,8 @@ interface TripContextValue extends TripSnapshot {
 
 const TripContext = createContext<TripContextValue | null>(null)
 
-export function TripProvider({ children }: { children: ReactNode }) {
-  const [store] = useState(() => new TripStore(createBackend()))
+export function TripProvider({ children, userId }: { children: ReactNode; userId?: string | null }) {
+  const [store] = useState(() => new TripStore(createBackend(), undefined, userId ? `thailand26:offline:${userId}` : undefined))
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const [identity, setIdentity] = useState<string | null>(() => {
     try { return localStorage.getItem(IDENTITY_KEY) } catch { return null }

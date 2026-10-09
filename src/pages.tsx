@@ -417,8 +417,10 @@ export function MapPage() {
         className: 'map-pin', iconSize: [42, 54], iconAnchor: [21, 50], tooltipAnchor: [0, -50],
         html: `<span class="map-pin-badge ${stale ? 'stale' : ''} ${isMe ? 'me' : ''}" style="--pin:${traveller.colour}">${travellerInitials(traveller.name)}</span>`,
       })
+      const label = document.createElement('span')
+      label.textContent = `${traveller.name.replace(/\s*\(Admin\)$/i, '')} \u00b7 ${relativeTime(loc.updated_at, new Date(now))}`
       L.marker([loc.lat, loc.lng], { icon, title: traveller.name })
-        .bindTooltip(`${traveller.name.replace(/\s*\(Admin\)$/i, '')} \u00b7 ${relativeTime(loc.updated_at, new Date(now))}`, { direction: 'top' })
+        .bindTooltip(label, { direction: 'top' })
         .addTo(layer)
       points.push([loc.lat, loc.lng])
     }

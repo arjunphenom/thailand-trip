@@ -35,6 +35,30 @@ const cleanups: (() => void)[] = []
 afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); vi.useRealTimers() })
 
 describe('shared state and failed writes', () => {
+  it('restores an offline read-only snapshot without persisting live locations', async () => {
+    const stored = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => { stored.set(key, value) },
+    })
+    try {
+      const fake = fixture()
+      fake.update((data) => {
+        data.tasks[0].title = 'Saved shared plan'
+        data.locations = [{ traveller_id: data.travellers[0].id, lat: 13.75, lng: 100.5, accuracy: 10, updated_at: new Date().toISOString() }]
+      })
+      const first = new TripStore(fake.backend, () => true, 'offline-test')
+      cleanups.push(first.start())
+      await first.refresh()
+      const offline = new TripStore(fake.backend, () => false, 'offline-test')
+      expect(offline.getSnapshot().data.tasks[0].title).toBe('Saved shared plan')
+      expect(offline.getSnapshot().data.locations).toEqual([])
+      expect(offline.getSnapshot().connection).toBe('offline')
+      expect(offline.getSnapshot().lastSynced).not.toBeNull()
+      await expect(offline.mutate('actor', 'cycle_status', {}, 'task')).rejects.toThrow('Reconnect')
+    } finally { vi.unstubAllGlobals() }
+  })
+
   it('makes the unconfigured preview explicitly read-only', async () => {
     const store = new TripStore(null)
     expect(store.getSnapshot().connection).toBe('preview')

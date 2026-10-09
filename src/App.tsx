@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react'
 import { HashRouter, Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { CircleHelp, ListTodo, Map, MapPinned, Palmtree, RefreshCw, TriangleAlert, Wallet, Wifi, WifiOff } from 'lucide-react'
 import { Toaster } from 'sonner'
+import { AccessGate } from './components/AccessGate.tsx'
+import { AppControls } from './components/AppControls.tsx'
 import { IdentityPicker } from './components/IdentityPicker.tsx'
 import { Avatar, EmptyState, IconButton, LoadingState, Sheet } from './components/ui.tsx'
 import { countdown, filterTasks, progress } from './lib/trip.ts'
@@ -38,6 +40,7 @@ function TripLayout() {
           </div>
         </div>
         <div className="header-right">
+          <AppControls />
           <div className="progress-block" aria-label={`${counts.done} of ${counts.total} tasks sorted`}>
             <div className="progress-ring" style={{ '--progress': `${counts.total ? counts.done / counts.total * 100 : 0}%` } as CSSProperties}><span>{counts.done}<small>/{counts.total}</small></span></div><span>sorted</span>
           </div>
@@ -73,5 +76,5 @@ function TripLayout() {
 }
 
 export default function App() {
-  return <HashRouter><TripProvider><TripLayout /></TripProvider></HashRouter>
+  return <HashRouter><AccessGate>{(userId) => <TripProvider key={userId ?? 'preview'} userId={userId}><TripLayout /></TripProvider>}</AccessGate></HashRouter>
 }

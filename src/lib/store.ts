@@ -13,6 +13,16 @@ export interface TripSnapshot {
   pending: string[]
 }
 
+function cachedTrip(key: string): { data: TripData; lastSynced: string } | null {
+  try {
+    const cached = JSON.parse(localStorage.getItem(key) || 'null')
+    const age = Date.now() - Date.parse(cached?.lastSynced)
+    if (!Number.isFinite(age) || age < 0 || age > 7 * 24 * 60 * 60 * 1000) return null
+    if (!Object.keys(EMPTY_DATA).every((table) => Array.isArray(cached?.data?.[table]))) return null
+    return { data: { ...cached.data, locations: [] }, lastSynced: cached.lastSynced }
+  } catch { return null }
+}
+
 export class TripStore {
   private snapshot: TripSnapshot
   private listeners = new Set<() => void>()
@@ -24,17 +34,21 @@ export class TripStore {
   private changeTimer: ReturnType<typeof setTimeout> | undefined
   private readonly backend: TripBackend | null
   private readonly online: () => boolean
+  private readonly cacheKey: string | undefined
 
   constructor(
     backend: TripBackend | null,
     online: () => boolean = () => typeof navigator === 'undefined' || navigator.onLine !== false,
+    cacheKey?: string,
   ) {
     this.backend = backend
     this.online = online
+    this.cacheKey = cacheKey
+    const cached = backend && cacheKey ? cachedTrip(cacheKey) : null
     this.snapshot = {
-      data: backend ? structuredClone(EMPTY_DATA) : seedData(),
-      connection: backend ? 'connecting' : 'preview', loading: !!backend,
-      refreshing: false, lastSynced: null, error: null, pending: [],
+      data: backend ? cached?.data ?? structuredClone(EMPTY_DATA) : seedData(),
+      connection: backend ? online() ? 'connecting' : 'offline' : 'preview', loading: !!backend && !cached,
+      refreshing: false, lastSynced: cached?.lastSynced ?? null, error: null, pending: [],
     }
   }
 
@@ -112,8 +126,12 @@ export class TripStore {
         this.refreshAgain = false
         const data = await this.backend!.load()
         if (this.stopped || generation !== this.generation) return
+        const lastSynced = new Date().toISOString()
+        if (this.cacheKey) {
+          try { localStorage.setItem(this.cacheKey, JSON.stringify({ data: { ...data, locations: [] }, lastSynced })) } catch {}
+        }
         this.publish({
-          data, lastSynced: new Date().toISOString(), error: null, loading: false,
+          data, lastSynced, error: null, loading: false,
           connection: !this.online() ? 'offline' : this.socketReady ? 'connected' : 'reconnecting',
         })
       } while (this.refreshAgain && !this.stopped && generation === this.generation)

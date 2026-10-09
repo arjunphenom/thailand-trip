@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { tripClient } from './client.ts'
 import type { Expense, NewExpense, NewRepayment, Traveller, TripData } from './types.ts'
 
 export type SocketState = 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR'
@@ -23,13 +23,8 @@ export interface TripBackend {
 const TABLES: (keyof TripData)[] = ['travellers', 'tasks', 'task_completions', 'comments', 'itinerary_days', 'activity', 'expenses', 'locations', 'repayments']
 
 export function createBackend(): TripBackend | null {
-  const url = import.meta.env.VITE_SUPABASE_URL
-  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
-  if (!url || !key) return null
-  const client = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    realtime: { params: { eventsPerSecond: 20 } },
-  })
+  const client = tripClient
+  if (!client) return null
 
   return {
     async load() {

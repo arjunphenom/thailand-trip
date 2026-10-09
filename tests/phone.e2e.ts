@@ -79,6 +79,32 @@ test('phone navigation, full notes and static-host links work', async ({ page },
   expect(errors).toEqual([])
 })
 
+test('installed app shell reopens offline with notification controls', async ({ page, context }, testInfo) => {
+  const registration = await page.evaluate(async () => {
+    const worker = await navigator.serviceWorker.ready
+    return { scope: worker.scope, script: worker.active?.scriptURL }
+  })
+  expect(registration.script).toContain('/sw.js')
+  const manifestUrl = await page.locator('link[rel="manifest"]').getAttribute('href')
+  expect(manifestUrl).toBeTruthy()
+  const manifestResponse = await page.request.get(new URL(manifestUrl!, page.url()).href)
+  const manifest = await manifestResponse.json()
+  expect(manifest.display).toBe('standalone')
+  expect(manifest.shortcuts.map((entry: { name: string }) => entry.name)).toEqual(['Money', 'Map'])
+  await page.getByRole('button', { name: 'App and notifications', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'App & notifications', exact: true })).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Notifications on this device' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Send test notification' })).toBeDisabled()
+  await expectPhoneLayout(page)
+  await page.screenshot({ path: testInfo.outputPath('app-settings.png') })
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await context.setOffline(true)
+  await page.reload()
+  await expect(page.getByRole('navigation', { name: 'Trip navigation' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Switch traveller' })).toContainText('A')
+  await expect(page.getByRole('button', { name: 'App and notifications' })).toBeVisible()
+})
+
 test('preview cannot fake saves and identity persists on this device', async ({ page }) => {
   const task = page.locator('.task-card').first()
   await task.locator('.status-button').click()

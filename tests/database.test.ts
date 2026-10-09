@@ -27,6 +27,53 @@ beforeEach(async () => {
 
 afterAll(async () => { await database?.close() })
 
+describe('private installable trip', () => {
+  it('isolates members, protects push subscriptions, and queues private notifications', async () => {
+    const secured = new PGlite()
+    try {
+      await secured.exec(`
+        create role anon;
+        create role authenticated;
+        create role service_role bypassrls;
+        create schema auth;
+        create table auth.users (id uuid primary key);
+        create function auth.uid() returns uuid language sql stable as $$
+          select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+        $$;
+        grant usage on schema auth to anon, authenticated, service_role;
+      `)
+      await secured.exec(migration)
+      await secured.exec(readFileSync(new URL('../supabase/migrations/202610020001_money_and_map.sql', import.meta.url), 'utf8'))
+      await secured.exec(seed)
+      await secured.exec(readFileSync(new URL('../supabase/migrations/202610080001_app_access_and_push.sql', import.meta.url), 'utf8'))
+      const member = '30000000-0000-4000-8000-000000000001'
+      const outsider = '30000000-0000-4000-8000-000000000002'
+      await secured.query('insert into auth.users(id) values ($1), ($2)', [member, outsider])
+      await secured.query('insert into public.trip_memberships(user_id) values ($1)', [member])
+      await secured.exec('set role anon;')
+      await expect(secured.query('select * from public.tasks')).rejects.toThrow(/permission denied/i)
+      await secured.exec('reset role; set role authenticated;')
+      await secured.query("select set_config('request.jwt.claim.sub', $1, false)", [outsider])
+      expect((await secured.query('select * from public.tasks')).rows).toEqual([])
+      await expect(secured.query('insert into public.trip_memberships(user_id) values ($1)', [outsider])).rejects.toThrow(/permission denied/i)
+      await secured.query("select set_config('request.jwt.claim.sub', $1, false)", [member])
+      expect((await secured.query('select * from public.tasks')).rows).toHaveLength(22)
+      await expect(secured.query('select * from public.push_subscriptions')).rejects.toThrow(/permission denied/i)
+      await expect(secured.query('select * from public.claim_push_jobs()')).rejects.toThrow(/permission denied/i)
+      await secured.query('select public.trip_mutate($1::uuid, $2, $3::jsonb)', [actor, 'cycle_status', JSON.stringify({ task_id: original.tasks[0].id, expected_updated_at: original.tasks[0].updated_at })])
+      await secured.exec('reset role;')
+      const queued = await secured.query<{ topic: string; route: string; actor_user_id: string }>('select topic, route, actor_user_id from public.push_outbox')
+      expect(queued.rows).toEqual([{ topic: 'tasks', route: '/', actor_user_id: member }])
+      expect((await secured.query('select * from public.claim_push_jobs()')).rows).toHaveLength(1)
+      expect((await secured.query('select * from public.claim_push_jobs()')).rows).toHaveLength(0)
+      for (let attempt = 0; attempt < 5; attempt++) {
+        expect((await secured.query<{ allowed: boolean }>('select public.allow_push_action($1, $2) as allowed', [member, 'test'])).rows[0].allowed).toBe(true)
+      }
+      expect((await secured.query<{ allowed: boolean }>('select public.allow_push_action($1, $2) as allowed', [member, 'test'])).rows[0].allowed).toBe(false)
+    } finally { await secured.close() }
+  }, 20_000)
+})
+
 describe('Supabase schema and atomic mutation contract', () => {
   it('updates only the original roster names and keeps identities and personal edits', async () => {
     const oldNames = ['Arjun', 'Traveller 2', 'Traveller 3', 'Traveller 4', 'Traveller 5', 'Traveller 6']

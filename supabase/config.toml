@@ -3,3 +3,9 @@ project_id = "thailand-nov-2026"
 [db.seed]
 enabled = true
 sql_paths = ["./seed.sql"]
+
+[auth]
+enable_anonymous_sign_ins = true
+
+[functions.trip-notifications]
+verify_jwt = false
