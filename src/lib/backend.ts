@@ -1,5 +1,5 @@
 import { tripClient } from './client.ts'
-import type { Expense, NewExpense, NewRepayment, Traveller, TripData } from './types.ts'
+import type { Expense, NewExpense, NewRepayment, NewWish, Traveller, TripData, Wish } from './types.ts'
 
 export type SocketState = 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR'
 export type Mutation = 'cycle_status' | 'update_task' | 'set_completion' | 'add_comment' | 'create_task'
@@ -18,6 +18,8 @@ export interface TripBackend {
   clearLocation: (id: string) => Promise<void>
   addRepayment: (repayment: NewRepayment) => Promise<void>
   deleteRepayment: (id: string) => Promise<void>
+  addWish: (wish: NewWish) => Promise<Wish>
+  deleteWish: (id: string) => Promise<void>
 }
 
 const TABLES: (keyof TripData)[] = ['travellers', 'tasks', 'task_completions', 'comments', 'itinerary_days', 'activity', 'expenses', 'locations', 'repayments']
@@ -29,20 +31,25 @@ export function createBackend(): TripBackend | null {
   return {
     async load() {
       const timeout = AbortSignal.timeout(15_000)
-      const results = await Promise.all([
-        client.from('travellers').select('*').order('created_at').order('id').abortSignal(timeout),
-        client.from('tasks').select('*').order('sort_order').order('id').abortSignal(timeout),
-        client.from('task_completions').select('*').abortSignal(timeout),
-        client.from('comments').select('*').order('created_at').order('id').abortSignal(timeout),
-        client.from('itinerary_days').select('*').order('day_date').abortSignal(timeout),
-        client.from('activity').select('*').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(20).abortSignal(timeout),
-        client.from('expenses').select('*').order('spent_at', { ascending: false }).order('created_at', { ascending: false }).abortSignal(timeout),
-        client.from('locations').select('*').abortSignal(timeout),
-        client.from('repayments').select('*').order('created_at', { ascending: false }).abortSignal(timeout),
+      const [results, wishes] = await Promise.all([
+        Promise.all([
+          client.from('travellers').select('*').order('created_at').order('id').abortSignal(timeout),
+          client.from('tasks').select('*').order('sort_order').order('id').abortSignal(timeout),
+          client.from('task_completions').select('*').abortSignal(timeout),
+          client.from('comments').select('*').order('created_at').order('id').abortSignal(timeout),
+          client.from('itinerary_days').select('*').order('day_date').abortSignal(timeout),
+          client.from('activity').select('*').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(20).abortSignal(timeout),
+          client.from('expenses').select('*').order('spent_at', { ascending: false }).order('created_at', { ascending: false }).abortSignal(timeout),
+          client.from('locations').select('*').abortSignal(timeout),
+          client.from('repayments').select('*').order('created_at', { ascending: false }).abortSignal(timeout),
+        ]),
+        client.from('wishes').select('*').order('created_at').order('id').abortSignal(timeout).then((result) => result, () => ({ data: [], error: null })),
       ])
       const failure = results.find((result) => result.error)
       if (failure?.error) throw failure.error
-      return Object.fromEntries(TABLES.map((table, index) => [table, results[index].data ?? []])) as unknown as TripData
+      const data = Object.fromEntries(TABLES.map((table, index) => [table, results[index].data ?? []])) as unknown as TripData
+      data.wishes = wishes.error ? [] : ((wishes.data as Wish[]) ?? [])
+      return data
     },
     listen(changed, status) {
       let channel = client.channel('thailand-trip-shared')
@@ -50,7 +57,10 @@ export function createBackend(): TripBackend | null {
         channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, changed)
       }
       channel.subscribe(status)
-      return () => { void client.removeChannel(channel) }
+      const wishChannel = client.channel('thailand-trip-wishes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'wishes' }, changed)
+      wishChannel.subscribe()
+      return () => { void client.removeChannel(channel); void client.removeChannel(wishChannel) }
     },
     async mutate(actor, action, payload) {
       const { data, error } = await client.rpc('trip_mutate', {
@@ -104,6 +114,17 @@ export function createBackend(): TripBackend | null {
     },
     async deleteRepayment(id) {
       const { error } = await client.from('repayments').delete().eq('id', id)
+        .abortSignal(AbortSignal.timeout(15_000))
+      if (error) throw error
+    },
+    async addWish(wish) {
+      const { data, error } = await client.from('wishes').insert(wish).select()
+        .abortSignal(AbortSignal.timeout(15_000)).single()
+      if (error) throw error
+      return data as Wish
+    },
+    async deleteWish(id) {
+      const { error } = await client.from('wishes').delete().eq('id', id)
         .abortSignal(AbortSignal.timeout(15_000))
       if (error) throw error
     },

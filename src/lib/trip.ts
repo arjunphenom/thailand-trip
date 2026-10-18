@@ -1,5 +1,5 @@
 import source from '../data/seed.json' with { type: 'json' }
-import type { Category, Expense, ExpenseCategory, Filter, Task, TaskStatus, Traveller, TripData } from './types.ts'
+import type { Category, Expense, ExpenseCategory, Filter, Task, TaskStatus, Traveller, TripData, WishCategory } from './types.ts'
 
 export const TRIP_TITLE = 'Thailand Nov 2026'
 export const TRIP_START = '2026-10-31'
@@ -11,11 +11,15 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   urgent: 'Urgent', booking: 'To book', optional: 'Optional', admin: 'Admin',
 }
 export const EMPTY_DATA: TripData = {
-  travellers: [], tasks: [], task_completions: [], comments: [], itinerary_days: [], activity: [], expenses: [], locations: [], repayments: [],
+  travellers: [], tasks: [], task_completions: [], comments: [], itinerary_days: [], activity: [], expenses: [], locations: [], repayments: [], wishes: [],
 }
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = ['food', 'transport', 'stay', 'shopping', 'activities', 'misc']
 export const EXPENSE_LABELS: Record<ExpenseCategory, string> = {
   food: 'Food', transport: 'Transport', stay: 'Stay', shopping: 'Shopping', activities: 'Activities', misc: 'Misc',
+}
+export const WISH_CATEGORIES: WishCategory[] = ['food', 'activities', 'sightseeing', 'nightlife', 'shopping', 'nature', 'misc']
+export const WISH_LABELS: Record<WishCategory, string> = {
+  food: 'Food & drink', activities: 'Activities', sightseeing: 'Sightseeing', nightlife: 'Nightlife', shopping: 'Shopping', nature: 'Beaches & nature', misc: 'Anything else',
 }
 
 const seedDate = '2026-09-23T00:00:00.000Z'
@@ -37,7 +41,7 @@ export function seedData(): TripData {
     itinerary_days: source.itinerary_days.map((day, index) => ({
       conflict_note: null, ...day, id: seedId(2, index), created_at: seedDate,
     })),
-    task_completions: [], comments: [], activity: [], expenses: [], locations: [], repayments: [],
+    task_completions: [], comments: [], activity: [], expenses: [], locations: [], repayments: [], wishes: [],
   }
 }
 

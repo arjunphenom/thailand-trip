@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowRight, ArrowRightLeft, ArrowUpRight, BedDouble, Bus, CalendarDays, Check, CheckCheck, ChevronDown, Coins, Crosshair, History, Hotel, ListTodo, LocateFixed, MapPin, MapPinned, PiggyBank, Plane, Plus, RadioTower, RefreshCw, ShoppingBag, Ticket, Trash2, TrendingUp, TriangleAlert, Users, Utensils, Wallet, WifiOff } from 'lucide-react'
+import { ArrowRight, ArrowRightLeft, ArrowUpRight, BedDouble, Bus, CalendarDays, Camera, Check, CheckCheck, ChevronDown, Coins, Crosshair, History, Hotel, ListTodo, LocateFixed, MapPin, MapPinned, Moon, Palmtree, PiggyBank, Plane, Plus, RadioTower, RefreshCw, ShoppingBag, Sparkles, Ticket, Trash2, TrendingUp, TriangleAlert, Users, Utensils, Wallet, WifiOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { toast } from 'sonner'
-import { CATEGORIES, CATEGORY_LABELS, DEFAULT_BUDGET_THB, EXPENSE_CATEGORIES, EXPENSE_LABELS, countdown, costs, daysBetween, filterTasks, formatDate, groupSpend, money, progress, relativeTime, settlements, splitBalances, spendByCategory, sumExpenses, taskStatus, travellerExpenses } from './lib/trip.ts'
-import type { ExpenseCategory, Filter, ItineraryDay } from './lib/types.ts'
+import { CATEGORIES, CATEGORY_LABELS, DEFAULT_BUDGET_THB, EXPENSE_CATEGORIES, EXPENSE_LABELS, WISH_CATEGORIES, WISH_LABELS, countdown, costs, daysBetween, filterTasks, formatDate, groupSpend, money, progress, relativeTime, settlements, splitBalances, spendByCategory, sumExpenses, taskStatus, travellerExpenses } from './lib/trip.ts'
+import type { ExpenseCategory, Filter, ItineraryDay, WishCategory } from './lib/types.ts'
 import { useInrRate } from './lib/rate.ts'
 import { useWeather, weatherLabel } from './lib/weather.ts'
 import { useTrip } from './lib/use-trip.tsx'
@@ -16,6 +16,10 @@ import { Avatar, EmptyState, IconButton, Markdown, PhotoCredit } from './compone
 
 const EXPENSE_ICONS: Record<ExpenseCategory, LucideIcon> = {
   food: Utensils, transport: Bus, stay: BedDouble, shopping: ShoppingBag, activities: Ticket, misc: Coins,
+}
+
+const WISH_ICONS: Record<WishCategory, LucideIcon> = {
+  food: Utensils, activities: Ticket, sightseeing: Camera, nightlife: Moon, shopping: ShoppingBag, nature: Palmtree, misc: Sparkles,
 }
 
 function travellerInitials(name: string): string {
@@ -159,6 +163,48 @@ function TripNow() {
     </div>
     <div className="weather-row">{weather.map((entry) => { const label = weatherLabel(entry.code); return <div className="weather-city" key={entry.city}><span className="weather-icon" title={label.text}>{label.icon}</span><span className="weather-temp">{entry.temp === null ? '—' : `${entry.temp}°`}</span><span className="weather-name">{entry.city}</span></div> })}</div>
   </section>
+}
+
+export function WishlistPage() {
+  const { data, me, store, save, pending, connection } = useTrip()
+  const preview = connection === 'preview'
+  const [title, setTitle] = useState('')
+  const [category, setCategory] = useState<WishCategory>('activities')
+  const groups = data.travellers
+    .map((traveller) => ({ traveller, wishes: data.wishes.filter((wish) => wish.traveller_id === traveller.id) }))
+    .filter((group) => group.wishes.length > 0)
+  const add = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!me || !title.trim()) return
+    if (await save(() => store.addWish({ traveller_id: me.id, title: title.trim(), category }), 'Added to your wishlist.')) setTitle('')
+  }
+  return <div className="page-body standalone-page">
+    <div className="page-heading"><div><span className="eyebrow">EVERYONE'S IDEAS</span><h2>Wishlist<span className="heading-dot">.</span></h2></div><span className="page-symbol"><Sparkles size={24} /></span></div>
+    <p className="wishlist-intro">What does everyone want to do in Thailand? Add yours, and see what the rest of the group is hoping for.</p>
+    {preview ? <p className="preview-form-note">Read-only preview. Connect Supabase to add wishes.</p>
+      : me ? <form className="task-form wishlist-form" onSubmit={add}>
+        <label>What do you want to do?<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} placeholder="e.g. Street food crawl in Bangkok" /></label>
+        <div className="form-grid">
+          <label>Category<select value={category} onChange={(event) => setCategory(event.target.value as WishCategory)}>
+            {WISH_CATEGORIES.map((option) => <option value={option} key={option}>{WISH_LABELS[option]}</option>)}
+          </select></label>
+        </div>
+        <button className="button button-primary full-width" type="submit" disabled={!title.trim() || pending.includes('wish')}><Plus size={17} />Add to my wishlist</button>
+      </form>
+      : <p className="wishlist-hint">Tap your avatar at the top right to choose your traveller, then add what you want to do.</p>}
+    {groups.length ? groups.map(({ traveller, wishes }) => <section className="wishlist-person" key={traveller.id}>
+      <div className="wishlist-person-head"><Avatar traveller={traveller} /><h3>{traveller.name.replace(/\s*\(Admin\)$/i, '')}</h3><span className="wish-count">{wishes.length}</span></div>
+      <ul className="wishlist-items">{wishes.map((wish) => {
+        const Icon = WISH_ICONS[wish.category] ?? Sparkles
+        return <li className="wishlist-item" key={wish.id}>
+          <span className="wish-ico"><Icon size={17} /></span>
+          <span className="wish-title">{wish.title}</span>
+          <span className="wish-cat">{WISH_LABELS[wish.category]}</span>
+          {wish.traveller_id === me?.id && <IconButton label="Remove from my wishlist" className="wish-remove" disabled={pending.includes(`wish:${wish.id}`)} onClick={() => void save(() => store.deleteWish(wish.id))}><Trash2 size={15} /></IconButton>}
+        </li>
+      })}</ul>
+    </section>) : <EmptyState icon={Sparkles} title="No wishes yet" detail="Be the first to add something you want to do on the trip." />}
+  </div>
 }
 
 export function ItineraryPage() {

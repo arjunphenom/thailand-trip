@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { HashRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { CircleHelp, ListTodo, Map, MapPinned, Palmtree, RefreshCw, TriangleAlert, Wallet, Wifi, WifiOff } from 'lucide-react'
+import { CircleHelp, ListTodo, Map, MapPinned, Palmtree, RefreshCw, Sparkles, TriangleAlert, Wallet, Wifi, WifiOff } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { AccessGate } from './components/AccessGate.tsx'
 import { AppControls } from './components/AppControls.tsx'
@@ -9,7 +9,7 @@ import { IdentityPicker } from './components/IdentityPicker.tsx'
 import { Avatar, EmptyState, IconButton, LoadingState, Sheet } from './components/ui.tsx'
 import { countdown, filterTasks, progress } from './lib/trip.ts'
 import { TripProvider, useTrip } from './lib/use-trip.tsx'
-import { ChecklistPage, ItineraryPage, MapPage, MoneyPage } from './pages.tsx'
+import { ChecklistPage, ItineraryPage, MapPage, MoneyPage, WishlistPage } from './pages.tsx'
 
 function TripLayout() {
   const { data, me, loading, connection, lastSynced, error, today, refreshing, store, save } = useTrip()
@@ -32,6 +32,7 @@ function TripLayout() {
   const connectionLabels = { preview: 'Preview', connected: 'Live', connecting: 'Connecting', reconnecting: 'Reconnecting', offline: 'Offline' }
   const tabs = [
     { to: '/', label: 'Checklist', icon: ListTodo }, { to: '/itinerary', label: 'Itinerary', icon: Map },
+    { to: '/wishlist', label: 'Wishes', icon: Sparkles },
     { to: '/money', label: 'Money', icon: Wallet }, { to: '/map', label: 'Map', icon: MapPinned },
   ]
   return <div className="app-shell">
@@ -67,7 +68,7 @@ function TripLayout() {
     <main id="main-content" tabIndex={-1}>
       {loading ? <LoadingState /> : error && !data.tasks.length ?
         <EmptyState icon={WifiOff} title="We couldn't reach the trip" detail="The connection is unavailable. No changes have been made."><button className="button button-primary" onClick={() => void save(() => store.refresh())}><RefreshCw size={16} />Try again</button></EmptyState> :
-        <Routes><Route path="/" element={<ChecklistPage />} /><Route path="/itinerary" element={<ItineraryPage />} /><Route path="/money" element={<MoneyPage />} /><Route path="/map" element={<MapPage />} /><Route path="/summary" element={<Navigate to="/map" replace />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>}
+        <Routes><Route path="/" element={<ChecklistPage />} /><Route path="/itinerary" element={<ItineraryPage />} /><Route path="/wishlist" element={<WishlistPage />} /><Route path="/money" element={<MoneyPage />} /><Route path="/map" element={<MapPage />} /><Route path="/summary" element={<Navigate to="/map" replace />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>}
     </main>
     <nav className="bottom-nav" aria-label="Trip navigation">{tabs.map(({ to, label, icon: Icon }) => <NavLink to={to} key={to} end={to === '/'} className={({ isActive }) => isActive ? 'nav-tab active' : 'nav-tab'}><Icon size={21} strokeWidth={1.8} /><span>{label}</span></NavLink>)}</nav>
     {!loading && data.travellers.length > 0 && (identityOpen || !me) && <IdentityPicker onClose={() => setIdentityOpen(false)} />}

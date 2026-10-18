@@ -309,6 +309,19 @@ textarea { resize: vertical; line-height: 1.6; }
 .person-option[aria-pressed='true'], .person-option:hover { background: #edf3e5; }
 .person-option > svg:last-child { margin-left: auto; color: var(--green); }
 .person-option small { display: block; font-size: 10px; color: #879978; margin-top: 3px; }
+.wishlist-intro { color: var(--muted); font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
+.wishlist-form { margin-bottom: 22px; }
+.wishlist-hint { color: var(--green); font-size: 13px; background: var(--green-light); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 22px; line-height: 1.5; }
+.wishlist-person { margin-bottom: 20px; }
+.wishlist-person-head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.wishlist-person-head h3 { font-size: 15px; font-weight: 600; }
+.wishlist-person-head .wish-count { margin-left: auto; font-size: 11px; background: var(--green-light); color: var(--green); padding: 2px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.wishlist-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.wishlist-item { display: flex; align-items: center; gap: 11px; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 13px; }
+.wishlist-item .wish-ico { color: var(--green); display: flex; }
+.wishlist-item .wish-title { flex: 1; font-size: 14px; line-height: 1.35; }
+.wishlist-item .wish-cat { font-size: 10px; color: var(--green); background: var(--green-light); border-radius: 3px; padding: 3px 7px; white-space: nowrap; }
+.wishlist-item .wish-remove { color: var(--muted); }
 .unassign-option { border-top: 1px solid var(--line); margin-top: 10px; color: #849478; }
 .unassign-option > svg:first-child { margin-inline: 7px; }
 .identity-sheet { top: 50%; bottom: auto; transform: translate(-50%, -50%); padding: 30px; }
