@@ -52,6 +52,14 @@ export function AppControls() {
     let active = true
     let worker: ServiceWorkerRegistration | null = null
     let installing: ServiceWorker | null = null
+    const hadController = !!navigator.serviceWorker.controller
+    let refreshing = false
+    const onControllerChange = () => {
+      if (!hadController || refreshing) return
+      refreshing = true
+      location.reload()
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
     const observeState = () => { if (active && worker?.waiting) setUpdateReady(true) }
     const observeUpdate = () => {
       installing = worker?.installing ?? null
@@ -75,6 +83,7 @@ export function AppControls() {
     return () => {
       active = false
       document.removeEventListener('visibilitychange', checkUpdate)
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
       worker?.removeEventListener('updatefound', observeUpdate)
       installing?.removeEventListener('statechange', observeState)
     }

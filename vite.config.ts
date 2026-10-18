@@ -36,7 +36,7 @@ export default defineConfig({
       navigateFallback: null,
       importScripts: ['push-notifications.js'],
       clientsClaim: true,
-      skipWaiting: false,
+      skipWaiting: true,
       cleanupOutdatedCaches: true,
       runtimeCaching: [{
         urlPattern: ({ request, sameOrigin }) => request.mode === 'navigate' && sameOrigin,
