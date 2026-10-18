@@ -287,8 +287,8 @@ main { min-height: 70vh; padding-bottom: calc(90px + env(safe-area-inset-bottom)
 .share-text { width: 100%; height: 510px; font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.8; padding: 23px; color: #67785b; resize: vertical; overflow-wrap: anywhere; }
 .privacy-note { font-size: 10px; line-height: 1.6; color: #969e8c; margin-top: 16px; display: flex; align-items: flex-start; gap: 6px; }
 .privacy-note > svg { margin-top: 2px; }
-.sheet-overlay { position: fixed; inset: 0; z-index: 60; background: #18342570; backdrop-filter: blur(3px); animation: detail-in 180ms ease-out; }
-.sheet { position: fixed; z-index: 61; bottom: 20px; left: 50%; transform: translateX(-50%); width: min(500px, calc(100% - 30px)); max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; padding: 25px; padding-bottom: max(25px, env(safe-area-inset-bottom)); background: #fffefa; border: 1px solid #d7e1cd; border-radius: var(--radius); box-shadow: 0 12px 70px #1b34242b; }
+.sheet-overlay { position: fixed; inset: 0; z-index: 200; background: #18342570; backdrop-filter: blur(3px); animation: detail-in 180ms ease-out; }
+.sheet { position: fixed; z-index: 201; bottom: 20px; left: 50%; transform: translateX(-50%); width: min(500px, calc(100% - 30px)); max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; padding: 25px; padding-bottom: max(25px, env(safe-area-inset-bottom)); background: #fffefa; border: 1px solid #d7e1cd; border-radius: var(--radius); box-shadow: 0 12px 70px #1b34242b; }
 .sheet-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 20px; }
 .sheet-heading h2 { font-size: 26px; line-height: 1.3; }
 .sheet-heading .icon-button { margin: -9px -10px -9px 0; }
@@ -609,7 +609,7 @@ textarea { resize: vertical; line-height: 1.6; }
 .emergency-item span { font-size: 11px; color: #7c6a63; }
 .emergency-item:hover { background: #fdf6f2; }
 
-.map-wrap { position: relative; margin-bottom: 8px; }
+.map-wrap { position: relative; isolation: isolate; margin-bottom: 8px; }
 .map-canvas { height: min(58vh, 540px); min-height: 320px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #dde6df; }
 .leaflet-container img { max-width: none; }
 .map-canvas .leaflet-container { font-family: 'DM Sans', sans-serif; background: #dde6df; }
