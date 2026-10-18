@@ -1,6 +1,6 @@
-import { useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { HashRouter, Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { HashRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { CircleHelp, ListTodo, Map, MapPinned, Palmtree, RefreshCw, TriangleAlert, Wallet, Wifi, WifiOff } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { AccessGate } from './components/AccessGate.tsx'
@@ -14,7 +14,17 @@ import { ChecklistPage, ItineraryPage, MapPage, MoneyPage } from './pages.tsx'
 function TripLayout() {
   const { data, me, loading, connection, lastSynced, error, today, refreshing, store, save } = useTrip()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   useLayoutEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    const onMessage = (event: MessageEvent) => {
+      const message = event.data as { type?: string; route?: string } | null
+      if (message?.type === 'trip-navigate' && typeof message.route === 'string') navigate(message.route)
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [navigate])
   const [identityOpen, setIdentityOpen] = useState(false)
   const [connectionOpen, setConnectionOpen] = useState(false)
   const counts = progress(data)
