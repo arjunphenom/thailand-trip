@@ -30,10 +30,10 @@ async function permitted(userId: string, action: string) {
   if (!response.data) throw new RequestError('Please wait a minute before trying again.', 429)
 }
 
-async function send(device: DeviceSubscription, route: string, tag: string): Promise<'sent' | 'expired' | 'retry'> {
+async function send(device: DeviceSubscription, route: string, tag: string, body?: string | null): Promise<'sent' | 'expired' | 'retry'> {
   if (!validEndpoint(device.endpoint)) return 'expired'
   try {
-    await webpush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ route, tag }), {
+    await webpush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ route, tag, body: typeof body === 'string' ? body.slice(0, 180) : undefined }), {
       vapidDetails: {
         subject: appUrl,
         publicKey: Deno.env.get('TRIP_VAPID_PUBLIC_KEY')!,
@@ -63,7 +63,7 @@ async function dispatch() {
     const completed = new Set(delivered.data?.map((entry) => entry.subscription_id))
     const devices = (subscriptions.data as DeviceSubscription[]).filter((device) => !completed.has(device.id))
     const outcomes = await Promise.all(devices.map(async (device) => {
-      const outcome = await send(device, job.route, job.id)
+      const outcome = await send(device, job.route, job.id, job.body)
       if (outcome === 'sent') {
         ensure(await service.from('push_deliveries').upsert({ job_id: job.id, subscription_id: device.id }))
       } else if (outcome === 'expired') {
@@ -183,7 +183,7 @@ Deno.serve(async (request) => {
       if (action === 'status') return respond({ subscribed: !!result.data, topics: result.data?.topics ?? notificationTopics })
       if (!result.data) throw new RequestError('Enable notifications on this device first.', 409)
       await permitted(user.id, 'test')
-      const outcome = await send(result.data as DeviceSubscription, '/', `test-${crypto.randomUUID()}`)
+      const outcome = await send(result.data as DeviceSubscription, '/', `test-${crypto.randomUUID()}`, 'Test notification — you are all set.')
       if (outcome === 'expired') {
         ensure(await service.from('push_subscriptions').delete().eq('id', result.data.id))
         throw new RequestError('This device subscription expired. Enable notifications again.', 410)

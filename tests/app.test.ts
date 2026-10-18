@@ -25,7 +25,7 @@ describe('push request validation', () => {
 })
 
 describe('notification worker', () => {
-  it('keeps lock-screen content generic and rejects off-app navigation', async () => {
+  it('shows the who-and-what summary and keeps navigation in-app', async () => {
     const listeners = new Map<string, (event: unknown) => void>()
     const notifications: { title: string; options: { body: string; data: { route: string } } }[] = []
     const opened: string[] = []
@@ -39,9 +39,10 @@ describe('notification worker', () => {
     }
     runInNewContext(readFileSync(new URL('../public/push-notifications.js', import.meta.url), 'utf8'), { self: worker, URL, Set })
     let completed = Promise.resolve()
-    listeners.get('push')!({ data: { json: () => ({ body: 'Private expense and coordinates', route: 'https://attacker.test', tag: 'event' }) }, waitUntil: (promise: Promise<void>) => { completed = promise } })
+    listeners.get('push')!({ data: { json: () => ({ title: 'AJ', body: 'added Phuket flight', route: 'https://attacker.test', tag: 'event' }) }, waitUntil: (promise: Promise<void>) => { completed = promise } })
     await completed
-    expect(notifications[0].options.body).not.toContain('coordinates')
+    expect(notifications[0].title).toBe('AJ')
+    expect(notifications[0].options.body).toBe('added Phuket flight')
     expect(notifications[0].options.data.route).toBe('/')
     listeners.get('notificationclick')!({ notification: { close() {}, data: { route: '/money' } }, waitUntil: (promise: Promise<void>) => { completed = promise } })
     await completed

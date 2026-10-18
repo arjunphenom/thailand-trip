@@ -17,10 +17,11 @@ self.addEventListener('push', (event) => {
   try { payload = event.data?.json() ?? {} } catch { payload = {} }
   const route = tripRoutes.has(payload.route) ? payload.route : '/'
   const scope = self.registration.scope
-  // Content is derived only from the trusted route, never from payload text, to keep the lock screen private.
+  // Text is the signed edge function's "who did what" summary; falls back to the route preset.
   const preset = routeMessages[route] || routeMessages['/']
-  event.waitUntil(self.registration.showNotification(preset.title, {
-    body: preset.body,
+  const clean = (value, max) => (typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null)
+  event.waitUntil(self.registration.showNotification(clean(payload.title, 100) || preset.title, {
+    body: clean(payload.body, 180) || preset.body,
     icon: new URL('icon-192.png', scope).href,
     badge: new URL('icon-192.png', scope).href,
     tag: typeof payload.tag === 'string' ? payload.tag.slice(0, 80) : 'trip-update',
