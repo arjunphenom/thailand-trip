@@ -13,6 +13,8 @@ export function AccessGate({ children }: { children: (userId: string | null) => 
   const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
 
+  useEffect(() => { try { void navigator.storage?.persist?.() } catch {} }, [])
+
   useEffect(() => {
     if (!tripClient) return
     let cancelled = false
@@ -39,6 +41,23 @@ export function AccessGate({ children }: { children: (userId: string | null) => 
           setUserId(session.user.id)
           setState('ready')
           return
+        }
+      }
+      // Access lost (evicted storage or a fresh device): silently rejoin using the
+      // invite from the URL or the one remembered from a previous join.
+      if (navigator.onLine !== false) {
+        let remembered: string | null = null
+        try { remembered = localStorage.getItem('thailand26:invite') } catch {}
+        const urlInvite = new URLSearchParams(location.hash.split('?')[1] ?? '').get('invite') ?? ''
+        const candidate = urlInvite || remembered || ''
+        if (candidate) {
+          try {
+            const member = await joinTrip(candidate)
+            if (cancelled) return
+            setUserId(member)
+            setState('ready')
+            return
+          } catch { /* fall through to the join screen */ }
         }
       }
       setState('locked')

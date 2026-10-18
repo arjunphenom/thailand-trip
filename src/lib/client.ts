@@ -41,6 +41,9 @@ export async function joinTrip(value: string): Promise<string> {
     session = result.data.session
   }
   await appRequest('join', { invite })
-  try { localStorage.setItem('thailand26:member', session.user.id) } catch {}
+  try {
+    localStorage.setItem('thailand26:member', session.user.id)
+    localStorage.setItem('thailand26:invite', invite)
+  } catch {}
   return session.user.id
 }
