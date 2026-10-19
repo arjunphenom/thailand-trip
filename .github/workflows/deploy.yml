@@ -81,3 +81,17 @@ jobs:
       - name: Publish
         id: deployment
         uses: actions/deploy-pages@v4
+
+  functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy edge function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "SUPABASE_ACCESS_TOKEN secret not set — skipping edge function deploy."
+            exit 0
+          fi
+          npx -y supabase@latest functions deploy trip-notifications --project-ref lqhrmhgqlbnvhwtkodjr --no-verify-jwt
