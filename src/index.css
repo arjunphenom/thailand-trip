@@ -200,7 +200,7 @@ main { min-height: 70vh; padding-bottom: calc(90px + env(safe-area-inset-bottom)
 .page-end { display: flex; align-items: center; justify-content: center; gap: 15px; color: #9da78f; margin-top: 35px; }
 .end-line { height: 1px; width: 30px; background: #d7dfcc; }
 .footer-note { font-family: 'Fraunces', serif; font-size: 12px; text-align: center; color: #8b9480; margin-top: 10px; }
-.bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 35; width: min(100%, 760px); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 15px calc(8px + env(safe-area-inset-bottom)); background: #fffffff5; backdrop-filter: blur(12px); border-top: 1px solid #e0e5d8; }
+.bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 35; width: min(100%, 760px); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 7px 15px calc(8px + env(safe-area-inset-bottom)); background: #fffffff5; backdrop-filter: blur(12px); border-top: 1px solid #e0e5d8; }
 .nav-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 51px; font-size: 10px; color: #9aa28f; text-decoration: none; position: relative; }
 .nav-tab.active { color: var(--green); font-weight: 600; }
 .nav-tab.active::before { content: ''; width: 21px; height: 2px; border-radius: 1px; background: var(--green); position: absolute; top: -8px; }
@@ -535,6 +535,15 @@ textarea { resize: vertical; line-height: 1.6; }
 .planning-budget > summary > svg:last-child { transition: transform 180ms; }
 .planning-budget[open] > summary > svg:last-child { transform: rotate(180deg); }
 .planning-budget .cost-list { padding-bottom: 12px; }
+.money-fold { border: 1px solid var(--line); border-radius: 10px; background: #fcfdf9; padding: 2px 14px; margin-bottom: 12px; }
+.money-fold[open] { padding-bottom: 14px; }
+.money-fold > summary { list-style: none; display: flex; align-items: center; gap: 9px; min-height: 52px; cursor: pointer; font-size: 13px; color: #5f6a5a; }
+.money-fold > summary::-webkit-details-marker { display: none; }
+.money-fold > summary > svg:first-child { color: var(--green); }
+.money-fold > summary .count-badge { margin-left: auto; font-size: 11px; }
+.money-fold > summary > svg:last-child { transition: transform 180ms; }
+.money-fold[open] > summary > svg:last-child { transform: rotate(180deg); }
+.money-empty { text-align: center; padding: 26px 0 10px; font-size: 12px; color: #8c9484; }
 
 .converter { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 22px; }
 .converter-head { display: flex; align-items: center; gap: 8px; margin-bottom: 13px; color: var(--green); }

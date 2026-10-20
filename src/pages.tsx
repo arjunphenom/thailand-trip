@@ -316,17 +316,6 @@ export function MoneyPage() {
         <button className="button button-primary" type="submit">Save</button></form>}
     </section>
 
-    <section className="converter" aria-label="Convert baht and rupees">
-      <div className="converter-head"><ArrowRightLeft size={16} /><h3>Quick convert</h3><span>1 ฿ = {rate.toFixed(2)} ₹</span></div>
-      <div className="converter-row">
-        <label className="conv-field"><span>{convFrom === 'thb' ? '฿ Baht' : '₹ Rupees'}</span>
-          <input type="number" inputMode="decimal" min={0} value={convAmount} onChange={(event) => setConvAmount(event.target.value)} placeholder="0" aria-label={convFrom === 'thb' ? 'Amount in baht' : 'Amount in rupees'} /></label>
-        <button type="button" className="conv-swap" aria-label="Swap baht and rupees" onClick={() => setConvFrom((current) => current === 'thb' ? 'inr' : 'thb')}><ArrowRightLeft size={18} /></button>
-        <div className="conv-field conv-out"><span>{convFrom === 'thb' ? '₹ Rupees' : '฿ Baht'}</span>
-          <strong>{money((Number(convAmount) || 0) * (convFrom === 'thb' ? rate : 1 / rate), convFrom === 'thb' ? 'INR' : 'THB')}</strong></div>
-      </div>
-    </section>
-
     <section className="spend-entry" aria-label="Add an expense">
       <div className="spend-entry-head"><Plus size={16} /><h3>Add spend</h3><span>฿ THB</span></div>
       <form ref={formRef} className="spend-form" onSubmit={addExpense}>
@@ -337,7 +326,7 @@ export function MoneyPage() {
           <input name="spent_at" type="date" aria-label="Date" defaultValue={todayField} />
         </div>
         <div className="split-bar">
-          <button type="button" className={`split-switch ${splitOn ? 'on' : ''}`} aria-pressed={splitOn} onClick={() => setSplitOn((on) => { const next = !on; if (next) { setSplitWith(me ? [me.id] : []); setSplitMode('equal'); setCustomShares({}) } return next })}><Users size={15} />Split this</button>
+          <button type="button" className={`split-switch ${splitOn ? 'on' : ''}`} aria-pressed={splitOn} onClick={() => setSplitOn((on) => { const next = !on; if (next) { setSplitWith(data.travellers.map((traveller) => traveller.id)); setSplitMode('equal'); setCustomShares({}) } return next })}><Users size={15} />Split this</button>
           {splitOn && <div className="split-modes" role="group" aria-label="Split type">
             <button type="button" className={splitMode === 'equal' ? 'on' : ''} aria-pressed={splitMode === 'equal'} onClick={() => setSplitMode('equal')}>Equal</button>
             <button type="button" className={splitMode === 'custom' ? 'on' : ''} aria-pressed={splitMode === 'custom'} onClick={() => { setSplitMode('custom'); const per = splitWith.length ? Math.round((Number(amountValue) || 0) / splitWith.length * 100) / 100 : 0; setCustomShares(Object.fromEntries(splitWith.map((id) => [id, per ? String(per) : '']))) }}>Custom</button>
@@ -357,14 +346,7 @@ export function MoneyPage() {
       {preview && <p className="preview-form-note">Read-only preview. Connect Supabase to track spending.</p>}
     </section>
 
-    {breakdown.length > 0 && <section className="spend-breakdown" aria-label="Where your money went">
-      <div className="cost-list-heading"><h3><TrendingUp size={15} />Where it went</h3><span>{mine.length} {mine.length === 1 ? 'entry' : 'entries'}</span></div>
-      <div className="breakdown-list">{breakdown.map((row) => { const Icon = EXPENSE_ICONS[row.category]; return <div className="breakdown-row" key={row.category}>
-        <span className={`cat-dot cat-${row.category}`}><Icon size={14} /></span>
-        <div className="breakdown-main"><div className="breakdown-top"><span>{EXPENSE_LABELS[row.category]}</span><strong>{money(row.total)}</strong></div>
-          <div className="breakdown-bar"><span className={`cat-${row.category}`} style={{ width: `${Math.round(row.total / maxCategory * 100)}%` }} /></div></div>
-      </div> })}</div>
-    </section>}
+    {data.expenses.length === 0 && <p className="empty-inline money-empty">No spending logged yet. Add your first entry above.</p>}
 
     {mine.length > 0 && <section className="spend-log" aria-label="Your recent spending">
       <div className="cost-list-heading"><h3>Recent</h3>{!confirmClear ? <button className="link-button danger" onClick={() => setConfirmClear(true)} disabled={preview}><Trash2 size={13} />Reset</button>
@@ -377,17 +359,33 @@ export function MoneyPage() {
       </li> })}</ul>
     </section>}
 
-    <section className="group-spend" aria-label="Group spending">
-      <div className="cost-list-heading"><h3><Users size={15} />The group</h3><span>{money(groupTotal)}</span></div>
-      {groupTotal > 0 ? <div className="group-list">{group.map(({ traveller, total }) => <div className="group-row" key={traveller.id}>
+    <details className="money-fold"><summary><ArrowRightLeft size={15} /><span>Quick convert</span><span className="count-badge">1 ฿ = {rate.toFixed(2)} ₹</span><ChevronDown size={16} /></summary>
+      <div className="converter-row">
+        <label className="conv-field"><span>{convFrom === 'thb' ? '฿ Baht' : '₹ Rupees'}</span>
+          <input type="number" inputMode="decimal" min={0} value={convAmount} onChange={(event) => setConvAmount(event.target.value)} placeholder="0" aria-label={convFrom === 'thb' ? 'Amount in baht' : 'Amount in rupees'} /></label>
+        <button type="button" className="conv-swap" aria-label="Swap baht and rupees" onClick={() => setConvFrom((current) => current === 'thb' ? 'inr' : 'thb')}><ArrowRightLeft size={18} /></button>
+        <div className="conv-field conv-out"><span>{convFrom === 'thb' ? '₹ Rupees' : '฿ Baht'}</span>
+          <strong>{money((Number(convAmount) || 0) * (convFrom === 'thb' ? rate : 1 / rate), convFrom === 'thb' ? 'INR' : 'THB')}</strong></div>
+      </div>
+    </details>
+
+    {breakdown.length > 0 && <details className="money-fold"><summary><TrendingUp size={15} /><span>Where it went</span><span className="count-badge">{mine.length} {mine.length === 1 ? 'entry' : 'entries'}</span><ChevronDown size={16} /></summary>
+      <div className="breakdown-list">{breakdown.map((row) => { const Icon = EXPENSE_ICONS[row.category]; return <div className="breakdown-row" key={row.category}>
+        <span className={`cat-dot cat-${row.category}`}><Icon size={14} /></span>
+        <div className="breakdown-main"><div className="breakdown-top"><span>{EXPENSE_LABELS[row.category]}</span><strong>{money(row.total)}</strong></div>
+          <div className="breakdown-bar"><span className={`cat-${row.category}`} style={{ width: `${Math.round(row.total / maxCategory * 100)}%` }} /></div></div>
+      </div> })}</div>
+    </details>}
+
+    {groupTotal > 0 && <details className="money-fold"><summary><Users size={15} /><span>The group</span><span className="count-badge">{money(groupTotal)}</span><ChevronDown size={16} /></summary>
+      <div className="group-list">{group.map(({ traveller, total }) => <div className="group-row" key={traveller.id}>
         <Avatar traveller={traveller} small mine={traveller.id === me?.id} />
         <div className="group-main"><div className="group-top"><span>{traveller.name.replace(/\s*\(Admin\)$/i, '')}</span><strong>{money(total)}</strong></div>
           <div className="group-bar"><span style={{ width: `${Math.round(total / maxGroup * 100)}%`, background: traveller.colour }} /></div></div>
-      </div>)}</div> : <p className="empty-inline">No spending logged yet. Add your first entry above.</p>}
-    </section>
+      </div>)}</div>
+    </details>}
 
-    <section className="split-section" aria-label="Split and settle up">
-      <div className="cost-list-heading"><h3><ArrowRightLeft size={15} />Split &amp; settle up</h3></div>
+    <details className="money-fold"><summary><ArrowRightLeft size={15} /><span>Split &amp; settle up</span>{settleList.length > 0 && <span className="count-badge">{settleList.length} to settle</span>}<ChevronDown size={16} /></summary>
       {hasShared ? (settleBalances.length > 0 ? <>
         <div className="balance-list">{settleBalances.map((entry) => <div className="balance-row" key={entry.traveller.id}>
           <Avatar traveller={entry.traveller} small mine={entry.traveller.id === me?.id} />
@@ -403,7 +401,7 @@ export function MoneyPage() {
         <Check size={14} /><span className="repaid-text">{from?.name.replace(/\s*\(Admin\)$/i, '') ?? '—'} paid {to?.name.replace(/\s*\(Admin\)$/i, '') ?? '—'} {money(Number(repayment.amount_thb))}</span>
         <IconButton label="Undo settlement" className="repaid-undo" disabled={preview} onClick={() => void save(() => store.deleteRepayment(repayment.id))}><Trash2 size={14} /></IconButton>
       </div> })}</div>}
-    </section>
+    </details>
 
     <details className="planning-budget"><summary><Wallet size={15} /><span>Planning estimates</span><span className="count-badge">{money(planning.estimated)}</span><ChevronDown size={16} /></summary>
       <p className="empty-inline">Pre-trip cost estimates on tasks. They stay as a reference, separate from what you actually spend.</p>
