@@ -21,6 +21,7 @@ export function DocumentsVault({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
+  const [forgot, setForgot] = useState(false)
 
   useEffect(() => {
     if (!me) return
@@ -75,21 +76,40 @@ export function DocumentsVault({ onClose }: { onClose: () => void }) {
     catch (failure) { setError((failure as Error).message) } finally { setBusy(false) }
   }
 
+  const adminReset = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!me) return
+    const code = String(new FormData(event.currentTarget).get('admin') ?? '')
+    setBusy(true); setError(null)
+    try {
+      await appRequest('doc-admin-reset', { traveller: me.id, admin: code })
+      setForgot(false); setLocked(false); setPhase('set')
+    } catch (failure) { setError((failure as Error).message) } finally { setBusy(false) }
+  }
+
   return <Sheet title="My documents" description="Your private travel documents, locked by a PIN" onClose={onClose}>
     {!me ? <p className="empty-inline">Pick your traveller first (tap your avatar), then open your documents.</p>
       : phase === 'loading' ? <p className="app-status" role="status">Loading…</p>
       : phase === 'set' ? <form className="task-form" onSubmit={setupPin}>
-        <p className="doc-intro"><ShieldCheck size={16} />Set a PIN to lock your documents. Only you can open them — on any device, by entering this PIN. Keep it safe; it can't be recovered.</p>
+        <p className="doc-intro"><ShieldCheck size={16} />Set a PIN to lock your documents. Only you can open them, on any device. Forget it later? Your trip admin can reset it — your files stay safe.</p>
         <label>Create a PIN (4–8 digits)<input name="pin" type="password" inputMode="numeric" autoComplete="new-password" pattern="\d{4,8}" maxLength={8} required autoFocus /></label>
         <label>Confirm PIN<input name="pin2" type="password" inputMode="numeric" autoComplete="new-password" pattern="\d{4,8}" maxLength={8} required /></label>
         <button className="button button-primary full-width" type="submit" disabled={busy}><Lock size={16} />Set PIN &amp; open</button>
       </form>
-      : phase === 'enter' ? <form className="task-form" onSubmit={enterPin}>
-        <p className="doc-intro"><Lock size={16} />Enter your documents PIN to unlock your files.</p>
-        <label>PIN<input name="pin" type="password" inputMode="numeric" autoComplete="off" pattern="\d{4,8}" maxLength={8} required autoFocus disabled={locked} /></label>
-        {locked && <p className="access-error">Too many wrong PINs. Try again in a few minutes.</p>}
-        <button className="button button-primary full-width" type="submit" disabled={busy || locked}><Lock size={16} />Unlock</button>
-      </form>
+      : phase === 'enter' ? <>
+        <form className="task-form" onSubmit={enterPin}>
+          <p className="doc-intro"><Lock size={16} />Enter your documents PIN to unlock your files.</p>
+          <label>PIN<input name="pin" type="password" inputMode="numeric" autoComplete="off" pattern="\d{4,8}" maxLength={8} required autoFocus disabled={locked} /></label>
+          {locked && <p className="access-error">Too many wrong PINs. Try again in a few minutes.</p>}
+          <button className="button button-primary full-width" type="submit" disabled={busy || locked}><Lock size={16} />Unlock</button>
+        </form>
+        <button type="button" className="link-button doc-forgot" onClick={() => setForgot((value) => !value)}>Forgot your PIN?</button>
+        {forgot && <form className="task-form doc-admin-form" onSubmit={adminReset}>
+          <p className="doc-intro"><ShieldCheck size={16} />Your trip admin can reset this PIN. Enter the admin code — your uploaded files stay safe, you'll just set a new PIN.</p>
+          <label>Admin code<input name="admin" type="password" autoComplete="off" required /></label>
+          <button className="button button-secondary full-width" type="submit" disabled={busy}>Reset this PIN</button>
+        </form>}
+      </>
       : <>
         <label className={`button button-primary full-width doc-upload-btn ${busy ? 'is-busy' : ''}`}>
           <Upload size={16} />{busy ? 'Working…' : 'Upload document (PDF or photo)'}

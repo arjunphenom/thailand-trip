@@ -254,6 +254,14 @@ Deno.serve(async (request) => {
         ensure(await service.from('document_vaults').insert({ traveller_id: travellerId, pin_hash: hash, pin_salt: salt }))
         return respond({ set: true })
       }
+      if (action === 'doc-admin-reset') {
+        const adminSecret = Deno.env.get('TRIP_ADMIN_SECRET')
+        if (!adminSecret || typeof body.admin !== 'string' || !await sameSecret(body.admin, adminSecret)) {
+          throw new RequestError('That admin code is not correct.', 403)
+        }
+        ensure(await service.from('document_vaults').delete().eq('traveller_id', travellerId))
+        return respond({ reset: true })
+      }
       await openVault(travellerId, body.pin)
       if (action === 'doc-list') {
         const docs = await service.from('documents').select('id, name, mime, size_bytes, created_at, path').eq('traveller_id', travellerId).order('created_at', { ascending: false })
