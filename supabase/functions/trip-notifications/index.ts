@@ -106,6 +106,47 @@ async function parseBody(request: Request): Promise<Record<string, unknown>> {
   } finally { reader.releaseLock() }
 }
 
+function b64(bytes: Uint8Array): string {
+  let text = ''
+  for (const byte of bytes) text += String.fromCharCode(byte)
+  return btoa(text)
+}
+function fromB64(value: string): Uint8Array {
+  const binary = atob(value)
+  const out = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index++) out[index] = binary.charCodeAt(index)
+  return out
+}
+async function hashPin(pin: string, saltB64: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: fromB64(saltB64), iterations: 150000, hash: 'SHA-256' }, key, 256)
+  return b64(new Uint8Array(bits))
+}
+function equalConstant(first: string, second: string): boolean {
+  if (first.length !== second.length) return false
+  let diff = 0
+  for (let index = 0; index < first.length; index++) diff |= first.charCodeAt(index) ^ second.charCodeAt(index)
+  return diff === 0
+}
+const isUuid = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+const docMimes = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic'])
+
+async function openVault(travellerId: string, pin: unknown): Promise<void> {
+  if (typeof pin !== 'string' || !/^\d{4,8}$/.test(pin)) throw new RequestError('Enter your 4 to 8 digit PIN.', 403)
+  const vault = await service.from('document_vaults').select('*').eq('traveller_id', travellerId).maybeSingle()
+  ensure(vault)
+  if (!vault.data) throw new RequestError('Set a documents PIN first.', 403)
+  if (vault.data.locked_until && new Date(vault.data.locked_until) > new Date()) throw new RequestError('Too many wrong PINs. Try again in a few minutes.', 429)
+  const hash = await hashPin(pin, vault.data.pin_salt)
+  if (!equalConstant(hash, vault.data.pin_hash)) {
+    const attempts = (vault.data.failed_attempts ?? 0) + 1
+    const locked = attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null
+    await service.from('document_vaults').update({ failed_attempts: attempts, locked_until: locked }).eq('traveller_id', travellerId)
+    throw new RequestError('That PIN is not correct.', 403)
+  }
+  if (vault.data.failed_attempts) await service.from('document_vaults').update({ failed_attempts: 0, locked_until: null }).eq('traveller_id', travellerId)
+}
+
 Deno.serve(async (request) => {
   const origin = request.headers.get('origin')
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', Vary: 'Origin' }
@@ -190,6 +231,64 @@ Deno.serve(async (request) => {
       }
       if (outcome !== 'sent') throw new RequestError('The push provider could not accept the notification. Please retry.', 503)
       return respond({ accepted: true })
+    }
+    if (typeof action === 'string' && action.startsWith('doc-')) {
+      if (!isUuid(body.traveller)) throw new RequestError('Choose your traveller first.')
+      const travellerId = body.traveller as string
+      if (action === 'doc-status') {
+        const vault = await service.from('document_vaults').select('traveller_id, locked_until').eq('traveller_id', travellerId).maybeSingle()
+        ensure(vault)
+        const locked = !!(vault.data?.locked_until && new Date(vault.data.locked_until) > new Date())
+        return respond({ hasPin: !!vault.data, locked })
+      }
+      if (action === 'doc-setpin') {
+        if (typeof body.pin !== 'string' || !/^\d{4,8}$/.test(body.pin)) throw new RequestError('PIN must be 4 to 8 digits.')
+        const traveller = await service.from('travellers').select('id').eq('id', travellerId).maybeSingle()
+        ensure(traveller)
+        if (!traveller.data) throw new RequestError('Choose your traveller first.')
+        const existing = await service.from('document_vaults').select('traveller_id').eq('traveller_id', travellerId).maybeSingle()
+        ensure(existing)
+        if (existing.data) throw new RequestError('A PIN is already set for this traveller.', 409)
+        const salt = b64(crypto.getRandomValues(new Uint8Array(16)))
+        const hash = await hashPin(body.pin, salt)
+        ensure(await service.from('document_vaults').insert({ traveller_id: travellerId, pin_hash: hash, pin_salt: salt }))
+        return respond({ set: true })
+      }
+      await openVault(travellerId, body.pin)
+      if (action === 'doc-list') {
+        const docs = await service.from('documents').select('id, name, mime, size_bytes, created_at, path').eq('traveller_id', travellerId).order('created_at', { ascending: false })
+        ensure(docs)
+        const documents = await Promise.all((docs.data ?? []).map(async (doc) => {
+          const signed = await service.storage.from('trip-docs').createSignedUrl(doc.path, 180)
+          return { id: doc.id, name: doc.name, mime: doc.mime, size_bytes: doc.size_bytes, created_at: doc.created_at, url: signed.data?.signedUrl ?? null }
+        }))
+        return respond({ documents })
+      }
+      if (action === 'doc-upload') {
+        const name = typeof body.name === 'string' ? body.name.trim().slice(0, 200) : ''
+        if (!name) throw new RequestError('Give the document a name.')
+        if (typeof body.mime !== 'string' || !docMimes.has(body.mime)) throw new RequestError('Only PDF or image files are allowed.')
+        const size = Number(body.size)
+        if (!Number.isFinite(size) || size <= 0 || size > 26214400) throw new RequestError('Files must be under 25 MB.')
+        const count = await service.from('documents').select('id', { count: 'exact', head: true }).eq('traveller_id', travellerId)
+        ensure(count)
+        if ((count.count ?? 0) >= 50) throw new RequestError('Document limit reached. Remove some first.', 409)
+        const path = `${travellerId}/${crypto.randomUUID()}`
+        const signed = await service.storage.from('trip-docs').createSignedUploadUrl(path)
+        if (signed.error || !signed.data) throw new RequestError('Could not start the upload. Please retry.', 503)
+        ensure(await service.from('documents').insert({ traveller_id: travellerId, name, path, mime: body.mime, size_bytes: Math.round(size) }))
+        return respond({ path, token: signed.data.token })
+      }
+      if (action === 'doc-delete') {
+        if (!isUuid(body.id)) throw new RequestError('Invalid document.')
+        const doc = await service.from('documents').select('path').eq('id', body.id as string).eq('traveller_id', travellerId).maybeSingle()
+        ensure(doc)
+        if (doc.data) {
+          await service.storage.from('trip-docs').remove([doc.data.path])
+          ensure(await service.from('documents').delete().eq('id', body.id as string).eq('traveller_id', travellerId))
+        }
+        return respond({ deleted: true })
+      }
     }
     throw new RequestError('Unknown action.')
   } catch (error) {

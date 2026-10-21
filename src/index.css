@@ -544,6 +544,20 @@ textarea { resize: vertical; line-height: 1.6; }
 .money-fold > summary > svg:last-child { transition: transform 180ms; }
 .money-fold[open] > summary > svg:last-child { transform: rotate(180deg); }
 .money-empty { text-align: center; padding: 26px 0 10px; font-size: 12px; color: #8c9484; }
+.doc-intro { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; line-height: 1.55; color: #5f6a5a; background: var(--green-light); border-radius: 10px; padding: 12px 13px; margin-bottom: 4px; }
+.doc-intro > svg { color: var(--green); flex-shrink: 0; margin-top: 1px; }
+.doc-upload-btn { cursor: pointer; margin-bottom: 14px; }
+.doc-upload-btn.is-busy { opacity: .6; pointer-events: none; }
+.doc-list { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.doc-row { display: flex; align-items: center; gap: 11px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.doc-row .doc-ico { color: var(--green); display: flex; }
+.doc-open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; background: none; text-align: left; }
+.doc-name { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.doc-meta { font-size: 11px; color: var(--muted); }
+.doc-del { color: var(--muted); }
+.doc-footnote { display: flex; gap: 7px; align-items: center; font-size: 11px; color: #8c9484; line-height: 1.5; }
+.doc-footnote > svg { color: var(--green); flex-shrink: 0; }
+.identity-docs { margin-top: 6px; }
 
 .converter { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 22px; }
 .converter-head { display: flex; align-items: center; gap: 8px; margin-bottom: 13px; color: var(--green); }
