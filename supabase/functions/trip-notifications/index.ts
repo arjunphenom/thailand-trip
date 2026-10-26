@@ -232,6 +232,46 @@ Deno.serve(async (request) => {
       if (outcome !== 'sent') throw new RequestError('The push provider could not accept the notification. Please retry.', 503)
       return respond({ accepted: true })
     }
+    if (typeof action === 'string' && action.startsWith('shared-')) {
+      if (action === 'shared-list') {
+        const docs = await service.from('shared_documents').select('id, name, mime, size_bytes, created_at, path, traveller_id').order('created_at', { ascending: false })
+        ensure(docs)
+        const travellers = await service.from('travellers').select('id, name')
+        ensure(travellers)
+        const names = new Map((travellers.data ?? []).map((traveller) => [traveller.id, traveller.name]))
+        const documents = await Promise.all((docs.data ?? []).map(async (doc) => {
+          const signed = await service.storage.from('trip-docs').createSignedUrl(doc.path, 180)
+          return { id: doc.id, name: doc.name, mime: doc.mime, size_bytes: doc.size_bytes, created_at: doc.created_at, uploaded_by: doc.traveller_id ? (names.get(doc.traveller_id) ?? null) : null, url: signed.data?.signedUrl ?? null }
+        }))
+        return respond({ documents })
+      }
+      if (action === 'shared-upload') {
+        if (!isUuid(body.traveller)) throw new RequestError('Choose your traveller first.')
+        const name = typeof body.name === 'string' ? body.name.trim().slice(0, 200) : ''
+        if (!name) throw new RequestError('Give the document a name.')
+        if (typeof body.mime !== 'string' || !docMimes.has(body.mime)) throw new RequestError('Only PDF or image files are allowed.')
+        const size = Number(body.size)
+        if (!Number.isFinite(size) || size <= 0 || size > 26214400) throw new RequestError('Files must be under 25 MB.')
+        const count = await service.from('shared_documents').select('id', { count: 'exact', head: true })
+        ensure(count)
+        if ((count.count ?? 0) >= 200) throw new RequestError('Shared document limit reached. Remove some first.', 409)
+        const path = `shared/${crypto.randomUUID()}`
+        const signed = await service.storage.from('trip-docs').createSignedUploadUrl(path)
+        if (signed.error || !signed.data) throw new RequestError('Could not start the upload. Please retry.', 503)
+        ensure(await service.from('shared_documents').insert({ traveller_id: body.traveller as string, name, path, mime: body.mime, size_bytes: Math.round(size) }))
+        return respond({ path, token: signed.data.token })
+      }
+      if (action === 'shared-delete') {
+        if (!isUuid(body.id)) throw new RequestError('Invalid document.')
+        const doc = await service.from('shared_documents').select('path').eq('id', body.id as string).maybeSingle()
+        ensure(doc)
+        if (doc.data) {
+          await service.storage.from('trip-docs').remove([doc.data.path])
+          ensure(await service.from('shared_documents').delete().eq('id', body.id as string))
+        }
+        return respond({ deleted: true })
+      }
+    }
     if (typeof action === 'string' && action.startsWith('doc-')) {
       if (!isUuid(body.traveller)) throw new RequestError('Choose your traveller first.')
       const travellerId = body.traveller as string

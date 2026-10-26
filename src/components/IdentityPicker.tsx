@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Check, FolderLock, LoaderCircle, Pencil, Plus, Save, Users } from 'lucide-react'
+import { Check, FolderLock, FolderOpen, LoaderCircle, Pencil, Plus, Save, Users } from 'lucide-react'
 import { useTrip } from '../lib/use-trip.tsx'
 import { Avatar, PhotoCredit, Sheet } from './ui.tsx'
 
-export function IdentityPicker({ onClose, onOpenDocuments }: { onClose: () => void; onOpenDocuments?: () => void }) {
+export function IdentityPicker({ onClose, onOpenDocuments, onOpenShared }: { onClose: () => void; onOpenDocuments?: () => void; onOpenShared?: () => void }) {
   const { data, me, chooseIdentity, store, save, pending, connection } = useTrip()
   const [adding, setAdding] = useState(false)
   const busy = pending.includes('travellers')
@@ -32,6 +32,7 @@ export function IdentityPicker({ onClose, onOpenDocuments }: { onClose: () => vo
       <button className="button button-primary" type="submit" disabled={busy}>{busy ? <LoaderCircle size={17} className="spin" /> : <Plus size={17} />}Add</button>
     </form> : <button className="button add-person" onClick={() => setAdding(true)}><Plus size={17} />Add someone</button>}
     {me && onOpenDocuments && <button type="button" className="button button-secondary full-width identity-docs" onClick={() => { onClose(); onOpenDocuments() }}><FolderLock size={17} />My documents</button>}
+    {onOpenShared && <button type="button" className="button button-secondary full-width identity-docs" onClick={() => { onClose(); onOpenShared() }}><FolderOpen size={17} />Shared documents</button>}
     {me && <details className="rename-traveller"><summary><Pencil size={14} />Rename my traveller</summary>
       <form className="identity-add" onSubmit={async (event) => {
         event.preventDefault()

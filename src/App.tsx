@@ -7,6 +7,7 @@ import { AccessGate } from './components/AccessGate.tsx'
 import { AppControls } from './components/AppControls.tsx'
 import { IdentityPicker } from './components/IdentityPicker.tsx'
 import { DocumentsVault } from './components/DocumentsVault.tsx'
+import { SharedDocuments } from './components/SharedDocuments.tsx'
 import { Avatar, EmptyState, IconButton, LoadingState, Sheet } from './components/ui.tsx'
 import { countdown, filterTasks, progress } from './lib/trip.ts'
 import { TripProvider, useTrip } from './lib/use-trip.tsx'
@@ -28,6 +29,7 @@ function TripLayout() {
   }, [navigate])
   const [identityOpen, setIdentityOpen] = useState(false)
   const [docsOpen, setDocsOpen] = useState(false)
+  const [sharedOpen, setSharedOpen] = useState(false)
   const [connectionOpen, setConnectionOpen] = useState(false)
   const counts = progress(data)
   const urgent = filterTasks(data, 'urgent', null, today).length
@@ -73,8 +75,9 @@ function TripLayout() {
         <Routes><Route path="/" element={<ChecklistPage />} /><Route path="/itinerary" element={<ItineraryPage />} /><Route path="/wishlist" element={<WishlistPage />} /><Route path="/money" element={<MoneyPage />} /><Route path="/map" element={<MapPage />} /><Route path="/summary" element={<Navigate to="/map" replace />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes>}
     </main>
     <nav className="bottom-nav" aria-label="Trip navigation">{tabs.map(({ to, label, icon: Icon }) => <NavLink to={to} key={to} end={to === '/'} className={({ isActive }) => isActive ? 'nav-tab active' : 'nav-tab'}><Icon size={21} strokeWidth={1.8} /><span>{label}</span></NavLink>)}</nav>
-    {!loading && data.travellers.length > 0 && (identityOpen || !me) && <IdentityPicker onClose={() => setIdentityOpen(false)} onOpenDocuments={() => setDocsOpen(true)} />}
+    {!loading && data.travellers.length > 0 && (identityOpen || !me) && <IdentityPicker onClose={() => setIdentityOpen(false)} onOpenDocuments={() => setDocsOpen(true)} onOpenShared={() => setSharedOpen(true)} />}
     {docsOpen && <DocumentsVault onClose={() => setDocsOpen(false)} />}
+    {sharedOpen && <SharedDocuments onClose={() => setSharedOpen(false)} />}
     {connectionOpen && <Sheet title="With the group" onClose={() => setConnectionOpen(false)}>
       <div className="connection-detail"><span className={`connection-dot connection-${connection}`} /><h3>{connectionLabels[connection]}</h3>{connection === 'offline' ? <WifiOff size={21} /> : <Wifi size={21} />}</div>
       <dl className="connection-facts">
